@@ -108,7 +108,8 @@ Similar options exist also for study 2 (`--z2_nocov_out` and `--z2_cov_out`).
 ```
 --Gty1_nocov_out <file name> --Gty1_cov_out <file name>
 ```
-These two output files contain individual-specific information required to compute the second term of the numerator of the PCGC estimator (the so-called intercept of LD score regression). The information in the file `Gty1_nocov_out` is not strictly required for subsequent analysis, but including it may result in increased accuracy.
+These two output files contain individual-specific information required to compute the second term of the numerator of the PCGC estimator (the so-called intercept of LD score regression). `--Gty1_nocov_out` creates a file that ignores covaraites, whereas `-Gty1_cov_out` creates a covariates-aware file.
+The information in the file `Gty1_nocov_out` is not strictly required for subsequent analysis, but including it may result in increased accuracy.
 
 However, the information in  `Gty1_cov_out` must be provided if one wishes to estimate genetic correlation between studies with overlapping individuals. Note that these files expose a (noisy version of) the phenotypes of individuals, as well as some information about their covariates. In practise only information about overlapping individuals between two studies is strictly required: One may delete information about other individuals from the output files if privacy is a concern.
 Similar options can be provided for study 2.
