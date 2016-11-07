@@ -49,7 +49,7 @@ python ../pcgcs_direct.py \
 python ../pcgcs_summary.py \
 --ref-ld example.l2.ldscore.gz \
 --n1 2000 --n2 2000 \
---z1_withcov z1_cov.csv.gz --z2_withcov z2_cov.csv.gz \
+--z1_cov z1_cov.csv.gz --z2_cov z2_cov.csv.gz \
 --Gty1_cov study1_cov.Gty --Gty2_cov study2_cov.Gty \
 --mean_Q1 1.1540  --mean_Q2 0.9452   \
 --var_t1 0.3302 --var_t2 0.3044
