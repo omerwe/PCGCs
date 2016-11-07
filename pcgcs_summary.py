@@ -20,6 +20,31 @@ import pcgcs_utils
 pd.set_option('display.width', 200)
 
 
+def permutation_test(z1, z2, num_perms=10000, chunk_size=1000):
+	real_stat = z1.dot(z2)
+	z1_perms = np.empty((chunk_size, z1.shape[0]))
+	z2_perms = np.empty((chunk_size, z2.shape[0]))
+	null_stats = np.empty(num_perms)
+	
+	for perm1 in xrange(0, num_perms, chunk_size):
+		last_perm = perm1+chunk_size
+		if (last_perm >= num_perms): last_perm = num_perms-1
+		perm_size = last_perm - perm1
+		
+		for i in xrange(perm_size):
+			z1_perms[i,:] = np.random.permutation(z1)
+			z2_perms[i,:] = np.random.permutation(z2)
+		null_stats[perm1 : last_perm] = np.sum(z1_perms[:perm_size] * z2_perms[:perm_size], axis=1)
+	
+	pvalue = np.mean(np.abs(null_stats) > np.abs(real_stat))
+	return pvalue
+	
+		
+	
+	
+	
+	
+
 
 def jackknife_summary(z1, n1, intercept1, denom_base1, z2=None, n2=None, intercept2=None, denom_base2=None, intercept12=None, denom_base12=None, ld_scores=None, mean_ld=None, num_blocks=200, is_cov=False, no_square=False):
 
@@ -576,6 +601,7 @@ if __name__ == '__main__':
 			se_rho = jackknife_summary(z1_cov*z2_cov, np.sqrt(args.n1*args.n2), 0, args.n1*args.n2 * args.mean_Q1 * args.mean_Q2, ld_scores=ld_scores, mean_ld=mean_ld, is_cov=True, num_blocks=args.n_blocks, no_square=True)
 		else:		
 			se_sig2g_1, se_sig2g_2, se_rho, se_corr = jackknife_summary(z1_cov, args.n1, sig2g1_intercept, args.n1**2 * args.mean_Q1**2, z2_cov, args.n2, sig2g2_intercept, args.n2**2 * args.mean_Q2**2, rho_intercept, args.n1*args.n2 * args.mean_Q1 * args.mean_Q2, ld_scores=ld_scores, mean_ld=mean_ld, is_cov=True, num_blocks=args.n_blocks)
+			
 		
 	print
 	print
@@ -595,6 +621,11 @@ if __name__ == '__main__':
 		print 'genetic covariance: %0.4f (%0.4f)'%(rho_cov, se_rho)
 		if (args.Gty1_cov is not None and args.Gty2_cov is not None):
 			print 'genetic correlation: %0.4f (%0.4f)'%(rho_cov / np.sqrt(sig2g_1_cov * sig2g_2_cov), se_corr)
+			
+		rho_pvalue_cov = permutation_test(z1_cov, z2_cov, num_perms=10000, chunk_size=1000)
+		print
+		print 'correlation p-value: %0.5e'%(rho_pvalue_cov)
+			
 				
 	
 	

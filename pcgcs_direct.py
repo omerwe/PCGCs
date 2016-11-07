@@ -18,7 +18,24 @@ np.set_printoptions(precision=4, linewidth=200)
 from sklearn.linear_model import LinearRegression, LogisticRegression
 import pcgcs_utils
 
-
+def permutation_test(z1, z2, num_perms=10000, chunk_size=1000):
+	real_stat = z1.dot(z2)
+	z1_perms = np.empty((chunk_size, z1.shape[0]))
+	z2_perms = np.empty((chunk_size, z2.shape[0]))
+	null_stats = np.empty(num_perms)
+	
+	for perm1 in xrange(0, num_perms, chunk_size):
+		last_perm = perm1+chunk_size
+		if (last_perm >= num_perms): last_perm = num_perms-1
+		perm_size = last_perm - perm1
+		
+		for i in xrange(perm_size):
+			z1_perms[i,:] = np.random.permutation(z1)
+			z2_perms[i,:] = np.random.permutation(z2)
+		null_stats[perm1 : last_perm] = np.sum(z1_perms[:perm_size] * z2_perms[:perm_size], axis=1)
+	
+	pvalue = np.mean(np.abs(null_stats) > np.abs(real_stat))
+	return pvalue
 
 def jackknife_pcgc_corr(X1, G1, y1, z1, Q1=None, u1_0=None, u1_1=None, X2=None, G2=None, y2=None, z2=None, Q2=None, u2_0=None, u2_1=None, G12=None, Q12=None, zero_mask=None, num_blocks=200, pcgc_coeff1=None, pcgc_coeff2=None):
 
@@ -268,7 +285,7 @@ def prepare_PCGC(phe, prev, cov, return_intermediate=False):
 	if return_intermediate:
 		return K, P, Ki, Pi, phi_tau_i
 	
-	return y_norm, tau_i, pcgc_coeff, ty, Q, u0, u1, logreg.intercept_[0], logreg.coef_[0]
+	return y_norm, tau_i, pcgc_coeff, ty, Q, u0, u1#, logreg.intercept_[0], logreg.coef_[0]
 	
 	
 def compute_Q12(phe1, prev1, cov1, phe2, prev2, cov2):
@@ -425,14 +442,14 @@ if __name__ == '__main__':
 
 		
 	#PCGC initial computations
-	y1_norm, tau_i_1, pcgc_coeff1, ty1, Q1, u1_0, u1_1, intercept1, fixed1 = prepare_PCGC(phe1, args.prev1, cov1)
+	y1_norm, tau_i_1, pcgc_coeff1, ty1, Q1, u1_0, u1_1 = prepare_PCGC(phe1, args.prev1, cov1)
 	y1y1_nocov = np.outer(y1_norm, y1_norm)
 	y1y1_withcov = np.outer(ty1, ty1)
 	if (cov1 is not None): var_t1 = varLiab_covar(args.prev1, tau_i_1, phe1)
 	else: var_t1=0
 		
 	if (bed2 is not None):
-		y2_norm, tau_i_2, pcgc_coeff2, ty2, Q2, u2_0, u2_1, intercept2, fixed2 = prepare_PCGC(phe2, args.prev2, cov2)
+		y2_norm, tau_i_2, pcgc_coeff2, ty2, Q2, u2_0, u2_1 = prepare_PCGC(phe2, args.prev2, cov2)
 		y2y2_nocov = np.outer(y2_norm, y2_norm)
 		y2y2_withcov = np.outer(ty2, ty2)
 		if (cov2 is not None): var_t2 = varLiab_covar(args.prev2, tau_i_2, phe2)
@@ -459,6 +476,14 @@ if __name__ == '__main__':
 	if (bed2 is not None):
 		z2_nocov = y2_norm.dot(X2) / np.sqrt(len(phe2))
 		z2_withcov = (ty2 * (u2_0+u2_1)).dot(X2)
+		
+		pvalue_nocov = permutation_test(z1_nocov, z2_nocov)
+		print 'correlation pvalue (no covariates): %0.5e'%(pvalue_nocov)
+		
+		if (args.covar2 is not None):
+			pvalue_cov = permutation_test(z1_withcov, z2_withcov)
+			print 'correlation pvalue (with covariates): %0.5e'%(pvalue_cov)
+		
 	
 	#write z-scores if required
 	if (args.z1_nocov_out is not None): write_sumstats(z1_nocov, len(phe1), bed1.sid, args.z1_nocov_out)
