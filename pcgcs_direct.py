@@ -335,6 +335,8 @@ if __name__ == '__main__':
 	parser.add_argument('--n-blocks', metavar='n_blocks', type=int, default=200, help='Number of block jackknife blocks')	
 	parser.add_argument('--center', metavar='center', type=int, default=1, help='whether to center SNPs prior to computing kinship (0 or 1, default 1)')	
 	
+	parser.add_argument('--num_perms', metavar='num_perms', type=int, default=10000, help='number of permutation testing iterations')
+	
 	parser.add_argument('--z1_nocov_out', metavar='z1_nocov_out', default=None, help='output file for Z-score statistics for study 1 without covariates')	
 	parser.add_argument('--z2_nocov_out', metavar='z2_nocov_out', default=None, help='output file for Z-score statistics for study 2 without covariates')	
 	parser.add_argument('--z1_cov_out', metavar='z1_cov_out', default=None, help='output file for Z-score statistics for study 1 with covariates')	
@@ -476,14 +478,6 @@ if __name__ == '__main__':
 	if (bed2 is not None):
 		z2_nocov = y2_norm.dot(X2) / np.sqrt(len(phe2))
 		z2_withcov = (ty2 * (u2_0+u2_1)).dot(X2)
-		
-		pvalue_nocov = permutation_test(z1_nocov, z2_nocov)
-		print 'correlation pvalue (no covariates): %0.5e'%(pvalue_nocov)
-		
-		if (args.covar2 is not None):
-			pvalue_cov = permutation_test(z1_withcov, z2_withcov)
-			print 'correlation pvalue (with covariates): %0.5e'%(pvalue_cov)
-		
 	
 	#write z-scores if required
 	if (args.z1_nocov_out is not None): write_sumstats(z1_nocov, len(phe1), bed1.sid, args.z1_nocov_out)
@@ -548,6 +542,12 @@ if __name__ == '__main__':
 		print 'genetic correlation: %0.4f'%(rho_nocov / np.sqrt(sig2g_1_nocov * sig2g_2_nocov)),
 		if (args.jackknife>0): print '(%0.4f)'%(corr_se_nocov),
 		print
+			
+		if (args.num_perms > 0):
+			print 'Performing permutation testing with %d permutations...'%(args.num_perms)
+			rho_pvalue_nocov = permutation_test(z1_nocov, z2_nocov, num_perms=args.num_perms)		
+			print 'correlation p-value (excluding covariates): %0.5e'%(rho_pvalue_nocov)
+				
 	print
 	print
 
@@ -591,6 +591,14 @@ if __name__ == '__main__':
 				print 'study 2 h2: %0.4f (%0.4f)  (genetic variance: %0.4f (%0.4f))'%(h2_2_withcov, sig2g2_se_withcov/(1+var_t2),  sig2g_2_withcov, sig2g1_se_withcov)
 				print 'genetic covariance: %0.4f (%0.4f)'%(rho_withcov, rho_se_withcov)
 				print 'genetic correlation: %0.4f (%0.4f)'%(rho_withcov / np.sqrt(sig2g_1_withcov * sig2g_2_withcov), corr_se_withcov)
+
+			if (args.covar2 is not None):
+				if (args.num_perms > 0):
+					print 'Performing permutation testing with %d permutations...'%(args.num_perms)
+					rho_pvalue_cov = permutation_test(z1_withcov, z2_withcov, num_perms=args.num_perms)		
+					print 'correlation p-value (including covariates): %0.5e'%(rho_pvalue_cov)
+			
+				
 	
 	print
 	print
