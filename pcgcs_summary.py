@@ -86,7 +86,7 @@ def jackknife_summary(z1, n1, intercept1, denom_base1, z2=None, n2=None, interce
 def validate_args(args):
 
 	if (args.z1_nocov is None):
-		assert args.z1_withcov is not None, 'either z1_nocov or z1_withcov must be specified'
+		assert args.z1_cov is not None, 'either z1_nocov or z1_cov must be specified'
 		assert args.P1 is None, 'P1 cannot be specified without z1_nocov'
 		assert args.pheno1 is None, 'pheno1 cannot be specified without z1_nocov'
 		assert args.pheno2 is None, 'pheno1 cannot be specified without z1_nocov'
@@ -121,9 +121,9 @@ def validate_args(args):
 		assert args.prev2 is not None, 'z2_nocov must be used with "--prev2"'
 		
 	# if (args.pheno1 is not None):
-		# assert args.z1_withcov is not None, 'pheno1 cannot be specified without z1_withcov'
+		# assert args.z1_cov is not None, 'pheno1 cannot be specified without z1_cov'
 	# if (args.pheno2 is not None):
-		# assert args.z2_withcov is not None, 'pheno2 cannot be specified without z2_withcov'
+		# assert args.z2_cov is not None, 'pheno2 cannot be specified without z2_cov'
 		
 	if (args.Gty1_nocov is not None):
 		assert args.pheno1 is None, 'no need to specify pheno1 when providing Gty1_nocov'
@@ -143,28 +143,28 @@ def validate_args(args):
 		assert args.z2_nocov is not None, 'Gty2_nocov cannot be specified without z2_nocov'		
 		
 	if (args.Gty1_cov is not None):
-		assert args.z1_withcov is not None, 'Gty1_cov cannot be specified without z1_withcov'
+		assert args.z1_cov is not None, 'Gty1_cov cannot be specified without z1_cov'
 		
 		
 	if (args.Gty2_cov is not None):
-		assert args.z2_withcov is not None, 'Gty2_cov cannot be specified without z2_withcov'
+		assert args.z2_cov is not None, 'Gty2_cov cannot be specified without z2_cov'
 		assert args.Gty1_cov is not None, 'Gty2_cov must be specified with Gty1_cov'
 		
-	if (args.z1_withcov is None):
-		assert (args.mean_Q1 is None), 'mean_Q1 cannot be specified without z1_withcov'
-		assert (args.var_t1 is None), 'var_t1 cannot be specified without z1_withcov'
+	if (args.z1_cov is None):
+		assert (args.mean_Q1 is None), 'mean_Q1 cannot be specified without z1_cov'
+		assert (args.var_t1 is None), 'var_t1 cannot be specified without z1_cov'
 	
-	if (args.z2_withcov is None):
-		assert (args.mean_Q2 is None), 'mean_Q2 cannot be specified without z2_withcov'
-		assert (args.var_t2 is None), 'var_t2 cannot be specified without z2_withcov'
+	if (args.z2_cov is None):
+		assert (args.mean_Q2 is None), 'mean_Q2 cannot be specified without z2_cov'
+		assert (args.var_t2 is None), 'var_t2 cannot be specified without z2_cov'
 
-	if (args.z1_withcov is not None):		
-		assert args.n1 is not None, 'z1_withcov must be used with "--n1"'
-		#assert args.prev1 is not None, 'z1_withcov must be used with "--prev1"'
-		assert (args.mean_Q1 is not None), 'z1_withcov must be used with mean_Q1'
-		#assert (args.Gty1_cov is not None), 'z1_withcov must be used with Gty1_cov'
+	if (args.z1_cov is not None):		
+		assert args.n1 is not None, 'z1_cov must be used with "--n1"'
+		#assert args.prev1 is not None, 'z1_cov must be used with "--prev1"'
+		assert (args.mean_Q1 is not None), 'z1_cov must be used with mean_Q1'
+		#assert (args.Gty1_cov is not None), 'z1_cov must be used with Gty1_cov'
 		
-		if (args.z2_withcov is None):
+		if (args.z2_cov is None):
 			assert args.Gty1_cov is not None, 'Gty1_cov must be provided for heritability estimation'
 		
 		if (args.bfile is not None):# or args.ncas_cas>0 or args.ncas_con>0 or args.ncon_cas>0 or args.ncon_con>0):
@@ -172,12 +172,12 @@ def validate_args(args):
 			assert args.pheno2 is not None, 'phenotypes file 2 for overlapping individuals must be provided'
 		
 		
-	if (args.z2_withcov is not None):
-		assert args.n2 is not None, 'z2_withcov must be used with "--n2"'
-		#assert args.prev2 is not None, 'z2_withcov must be used with "--prev2"'
-		assert (args.mean_Q1 is not None), 'z2_withcov must be used with mean_Q1'
-		assert (args.mean_Q2 is not None), 'z2_withcov must be used with mean_Q2'
-		#assert (args.Gty2_cov is not None), 'z2_withcov must be used with Gty2_cov'
+	if (args.z2_cov is not None):
+		assert args.n2 is not None, 'z2_cov must be used with "--n2"'
+		#assert args.prev2 is not None, 'z2_cov must be used with "--prev2"'
+		assert (args.mean_Q1 is not None), 'z2_cov must be used with mean_Q1'
+		assert (args.mean_Q2 is not None), 'z2_cov must be used with mean_Q2'
+		#assert (args.Gty2_cov is not None), 'z2_cov must be used with Gty2_cov'
 		
 		if (args.Gty1_cov is not None): assert args.Gty2_cov is not None, 'Gty1_cov and Gty2_cov must both be provided'
 		
@@ -286,8 +286,8 @@ if __name__ == '__main__':
 	
 	parser.add_argument('--z1_nocov', metavar='z1_nocov', default=None, help='z-scores file for study 1 when omitting covariates')
 	parser.add_argument('--z2_nocov', metavar='z2_nocov', default=None, help='z-scores file for study 2 when omitting covariates')	
-	parser.add_argument('--z1_withcov', metavar='z1_withcov', default=None, help='z-scores file for study 1 when including covariates')
-	parser.add_argument('--z2_withcov', metavar='z2_withcov', default=None, help='z-scores file for study 2 when including covariates')
+	parser.add_argument('--z1_cov', metavar='z1_cov', default=None, help='z-scores file for study 1 when including covariates')
+	parser.add_argument('--z2_cov', metavar='z2_cov', default=None, help='z-scores file for study 2 when including covariates')
 	
 	
 	parser.add_argument('--n1', metavar='n1', required=True, type=int, help='sample size of study 1')
@@ -349,9 +349,9 @@ if __name__ == '__main__':
 		else: mean_ld = ld_scores.mean()	
 		print 'Total number of SNPs with omitted-covariates Z-scores: %d'%(len(snp_names))		
 	
-	if (args.z1_withcov is not None):
+	if (args.z1_cov is not None):
 		#read Z scores and LD scores, and compute mean LD score
-		z1_cov, z2_cov, snp_names, ld_scores = read_zscores(args.z1_withcov, args.z2_withcov, extractSnpsSet, args.ref_ld)
+		z1_cov, z2_cov, snp_names, ld_scores = read_zscores(args.z1_cov, args.z2_cov, extractSnpsSet, args.ref_ld)
 		if (args.ref_ld is None): mean_ld = args.mean_ld
 		else: mean_ld = ld_scores.mean()
 		print 'Total number of SNPs with included-covariates Z-scores: %d'%(len(snp_names))
@@ -506,7 +506,7 @@ if __name__ == '__main__':
 			print 'genetic correlation: %0.4f (%0.4f)'%(rho_nocov / np.sqrt(sig2g_1_nocov * sig2g_2_nocov), se_corr)
 			
 			
-		if (args.z1_withcov is None): sys.exit(0)
+		if (args.z1_cov is None): sys.exit(0)
 
 
 
@@ -520,7 +520,7 @@ if __name__ == '__main__':
 		df1.columns = ('fid', 'iid', 'Gty')
 		Gty1_cov = df1['Gty'].values
 		assert len(Gty1_cov)==args.n1, 'number of individuals in Gty1_cov file is different from n1 argument'
-		if (args.z2_withcov is not None):
+		if (args.z2_cov is not None):
 			df2 = pd.read_csv(args.Gty2_cov, header=None, sep='\s+')
 			df2.columns = ('fid', 'iid', 'Gty')
 			Gty2_cov = df2['Gty'].values
@@ -542,10 +542,10 @@ if __name__ == '__main__':
 		if (args.var_t1 is not None): h2_1_cov = sig2g_1_cov / (1+args.var_t1)
 		#print 'numer/denom for study 1:', sig2g1_cov_numer, sig2g1_cov_denom
 		#print 'sum G1**2:', args.n1**2 / float(z1_cov.shape[0]) * mean_ld
-		if (args.z2_withcov is None): se_sig2g_1 = jackknife_summary(z1_cov, args.n1, sig2g1_intercept, args.n1**2 * args.mean_Q1**2, ld_scores=ld_scores, mean_ld=mean_ld, is_cov=True, num_blocks=args.n_blocks)
+		if (args.z2_cov is None): se_sig2g_1 = jackknife_summary(z1_cov, args.n1, sig2g1_intercept, args.n1**2 * args.mean_Q1**2, ld_scores=ld_scores, mean_ld=mean_ld, is_cov=True, num_blocks=args.n_blocks)
 
 	
-	if (args.z2_withcov is not None):
+	if (args.z2_cov is not None):
 		if (args.Gty2_cov is not None):
 			#estimate sig2g_2
 			sig2g2_intercept = Gty2_cov.dot(Gty2_cov)
@@ -586,7 +586,7 @@ if __name__ == '__main__':
 			print 'study 1 sig2g: %0.4f (%0.4f) (h2 cannot be determined without var_t1)'%(sig2g_1_cov, se_sig2g_1)
 		else:
 			print 'study 1 h2: %0.4f (%0.4f) (genetic variance: %0.4f (%0.4f)'%(h2_1_cov, se_sig2g_1/(1+args.var_t1), sig2g_1_cov, se_sig2g_1)
-	if (args.z2_withcov is not None):
+	if (args.z2_cov is not None):
 		if (args.Gty2_cov is not None):
 			if (args.var_t2 is None):
 				print 'study 2 sig2g: %0.4f (%0.4f)  (h2 cannot be determined without var_t2)'%(sig2g_2_cov, se_sig2g_2)
