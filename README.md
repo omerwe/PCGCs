@@ -20,9 +20,6 @@ Once all the prerequisite packages are installed, PCGC-s can be installed on a g
 ```
 git clone https://github.com/omerwe/PCGCs
 ```
-```
-unzip example.zip
-```
 
 The project can also be downloaded as a zip file from the Github website.
 
