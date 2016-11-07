@@ -37,7 +37,7 @@ python pcgcs_summary.py --help
 ```
 
 ##TL;DR
-For an example, please go to the "example directory and run the following two commands:
+For an example, please go to the "example" directory and run the following two commands:
 ```
 python ../pcgcs_direct.py \
 --bfile1 study1 --pheno1 study1.phe --covar1 study1.cov --prev1 0.01 \
