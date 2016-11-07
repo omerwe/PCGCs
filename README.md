@@ -99,7 +99,7 @@ The following categories of options are used to create summary statistic files:
 
 ####Z-score output options:
 ```
---z1_nocov_out <file_name> z1_nocov.csv --z1_cov_out <file_name>
+--z1_nocov_out <file_name> --z1_cov_out <file_name>
 ```
 These options will tell PCGC-s to output z-score summary statistics, similarly to LD score regression. The first option ignores measured covariates, while the second option outputs a covariates-aware z-scores file. Both options can be be used simultaneously.
 Similar options exist also for study 2 (`--z2_nocov_out` and `--z2_cov_out`).
