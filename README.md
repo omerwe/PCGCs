@@ -36,6 +36,7 @@ python pcgcs_direct.py --help
 python pcgcs_summary.py --help
 ```
 
+##TL;DR
 For an example, please go to the "example directory and run the following two commands:
 ```
 python ../pcgcs_direct.py \
