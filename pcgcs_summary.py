@@ -20,24 +20,24 @@ import pcgcs_utils
 pd.set_option('display.width', 200)
 
 
-def permutation_test(z1, z2, num_perms=10000, chunk_size=1000):
-	real_stat = z1.dot(z2)
-	z1_perms = np.empty((chunk_size, z1.shape[0]))
-	z2_perms = np.empty((chunk_size, z2.shape[0]))
-	null_stats = np.empty(num_perms)
+# def permutation_test(z1, z2, num_perms=10000, chunk_size=1000):
+	# real_stat = z1.dot(z2)
+	# z1_perms = np.empty((chunk_size, z1.shape[0]))
+	# z2_perms = np.empty((chunk_size, z2.shape[0]))
+	# null_stats = np.empty(num_perms)
 	
-	for perm1 in xrange(0, num_perms, chunk_size):
-		last_perm = perm1+chunk_size
-		if (last_perm >= num_perms): last_perm = num_perms-1
-		perm_size = last_perm - perm1
+	# for perm1 in xrange(0, num_perms, chunk_size):
+		# last_perm = perm1+chunk_size
+		# if (last_perm >= num_perms): last_perm = num_perms-1
+		# perm_size = last_perm - perm1
 		
-		for i in xrange(perm_size):
-			z1_perms[i,:] = np.random.permutation(z1)
-			z2_perms[i,:] = np.random.permutation(z2)
-		null_stats[perm1 : last_perm] = np.sum(z1_perms[:perm_size] * z2_perms[:perm_size], axis=1)
+		# for i in xrange(perm_size):
+			# z1_perms[i,:] = np.random.permutation(z1)
+			# z2_perms[i,:] = np.random.permutation(z2)
+		# null_stats[perm1 : last_perm] = np.sum(z1_perms[:perm_size] * z2_perms[:perm_size], axis=1)
 	
-	pvalue = np.mean(np.abs(null_stats) > np.abs(real_stat))
-	return pvalue
+	# pvalue = np.mean(np.abs(null_stats) > np.abs(real_stat))
+	# return pvalue
 	
 		
 	
@@ -110,7 +110,7 @@ def jackknife_summary(z1, n1, intercept1, denom_base1, z2=None, n2=None, interce
 
 def validate_args(args):
 
-	assert args.num_perms>=0, 'number of permutation tests must be non-negative'
+	# assert args.num_perms>=0, 'number of permutation tests must be non-negative'
 
 	if (args.z1_nocov is None):
 		assert args.z1_cov is not None, 'either z1_nocov or z1_cov must be specified'
@@ -321,7 +321,7 @@ if __name__ == '__main__':
 	parser.add_argument('--n2', metavar='n2', default=None, type=int, help='sample size of study 2')
 	
 	parser.add_argument('--n-blocks', metavar='n_blocks', type=int, default=200, help='Number of block jackknife blocks')
-	parser.add_argument('--num_perms', metavar='num_perms', type=int, default=10000, help='number of permutations for permutation testing')	
+	# parser.add_argument('--num_perms', metavar='num_perms', type=int, default=10000, help='number of permutations for permutation testing')	
 	
 	parser.add_argument('--ref-ld', metavar='ref_ld', default=None, help='file with LD scores of SNPs, in ldsc format')
 	parser.add_argument('--mean-ld', metavar='mean_ld', type=float, default=None, help='mean LD of SNPs (if this is specified instead of ref-ld, jackknife estimates will be slightly less accurate)')
@@ -533,10 +533,10 @@ if __name__ == '__main__':
 			print 'genetic covariance: %0.4f (%0.4f)'%(rho_nocov, se_rho)
 			print 'genetic correlation: %0.4f (%0.4f)'%(rho_nocov / np.sqrt(sig2g_1_nocov * sig2g_2_nocov), se_corr)
 			
-			if (args.num_perms > 0):
-				print 'Performing permutation testing with %d permutations...'%(args.num_perms)
-				rho_pvalue_nocov = permutation_test(z1_nocov, z2_nocov, num_perms=args.num_perms)		
-				print 'correlation p-value (excluding covariates): %0.5e'%(rho_pvalue_nocov)
+			# if (args.num_perms > 0):
+				# print 'Performing permutation testing with %d permutations...'%(args.num_perms)
+				# rho_pvalue_nocov = permutation_test(z1_nocov, z2_nocov, num_perms=args.num_perms)		
+				# print 'correlation p-value (excluding covariates): %0.5e'%(rho_pvalue_nocov)
 			
 			
 			
@@ -631,10 +631,10 @@ if __name__ == '__main__':
 		if (args.Gty1_cov is not None and args.Gty2_cov is not None):
 			print 'genetic correlation: %0.4f (%0.4f)'%(rho_cov / np.sqrt(sig2g_1_cov * sig2g_2_cov), se_corr)
 			
-		if (args.num_perms > 0):
-			print 'Performing permutation testing with %d permutations...'%(args.num_perms)
-			rho_pvalue_cov = permutation_test(z1_cov, z2_cov, num_perms=args.num_perms)		
-			print 'correlation p-value (including covariates): %0.5e'%(rho_pvalue_cov)
+		# if (args.num_perms > 0):
+			# print 'Performing permutation testing with %d permutations...'%(args.num_perms)
+			# rho_pvalue_cov = permutation_test(z1_cov, z2_cov, num_perms=args.num_perms)		
+			# print 'correlation p-value (including covariates): %0.5e'%(rho_pvalue_cov)
 			
 				
 	
