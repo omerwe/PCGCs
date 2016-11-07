@@ -36,7 +36,8 @@ python pcgcs_direct.py --help
 python pcgcs_summary.py --help
 ```
 
-For an example, please go to the "example directory and run the following two commands:
+##TL;DR
+For an example, please go to the "example" directory and run the following two commands:
 ```
 python ../pcgcs_direct.py \
 --bfile1 study1 --pheno1 study1.phe --covar1 study1.cov --prev1 0.01 \
@@ -48,7 +49,7 @@ python ../pcgcs_direct.py \
 python ../pcgcs_summary.py \
 --ref-ld example.l2.ldscore.gz \
 --n1 2000 --n2 2000 \
---z1_withcov z1_cov.csv.gz --z2_withcov z2_cov.csv.gz \
+--z1_cov z1_cov.csv.gz --z2_cov z2_cov.csv.gz \
 --Gty1_cov study1_cov.Gty --Gty2_cov study2_cov.Gty \
 --mean_Q1 1.1540  --mean_Q2 0.9452   \
 --var_t1 0.3302 --var_t2 0.3044
@@ -98,7 +99,7 @@ The following categories of options are used to create summary statistic files:
 
 ####Z-score output options:
 ```
---z1_nocov_out <file_name> z1_nocov.csv --z1_cov_out <file_name>
+--z1_nocov_out <file_name> --z1_cov_out <file_name>
 ```
 These options will tell PCGC-s to output z-score summary statistics, similarly to LD score regression. The first option ignores measured covariates, while the second option outputs a covariates-aware z-scores file. Both options can be be used simultaneously.
 Similar options exist also for study 2 (`--z2_nocov_out` and `--z2_cov_out`).
