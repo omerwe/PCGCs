@@ -139,7 +139,7 @@ Estimating heritability and genetic correlation with `pcgcs_summary.py` requires
 <br><br>
 ##Computing Heritability and Genetic Correlation with Summary Statistics
 
-As explained above, there is a major distinction between analyses that omit covariates and those that include them. `pcgcs_direct.py` can carry out both types of analyses. We first describe covariate-less analyses, and then proceed to describe covariate-aware analyses. We note that we describe a method to compute exact estimates (without approximation) in the paper by computing the covariance between every pair of variants in the study. However, this is a very computationally expensive operation and is currently not implemented in the software.
+As explained above, there is a major distinction between analyses that omit covariates and those that include them. `pcgcs_direct.py` can carry out both types of analyses. We first describe covariate-less analyses, and then proceed to describe covariate-aware analyses. We note that the PCGC-s paper describes a method to compute exact estimates (without approximation) by computing the covariance between every pair of variants in the study. However, this is a very computationally expensive operation and is currently not implemented in the software.
 
 
 ####covariate-less analysis with summary statistics
