@@ -7,8 +7,8 @@ The method can be seen as an adaptation of [LD score regression](http://www.natu
 <br><br>
 #Installation
 PCGC-s is designed to work in Python 2.7, and depends on the following freely available Python package:
-* [Numpy](http://www.numpy.org/) and [Scipy](http://www.scipy.org/)
-* [Scikits-learn](http://scikit-learn.org/stable/)
+* [numpy](http://www.numpy.org/) and [scipy](http://www.scipy.org/)
+* [scikit-learn](http://scikit-learn.org/stable/)
 * [PySnpTools](https://github.com/MicrosoftGenomics/PySnpTools)
 
 Typically, the packages can be installed with the command "pip install --user \<package_name\>".
