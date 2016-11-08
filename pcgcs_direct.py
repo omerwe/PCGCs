@@ -40,6 +40,7 @@ def permutation_test(G, yyT, is_same, num_perms=10000):
 		null_stats[i] = x.dot(y)
 		
 	pvalue = np.mean(np.abs(null_stats) > np.abs(real_stat))
+	if (pvalue < 1.0/num_perms): pvalue = 1.0/num_perms
 	return pvalue
 
 def jackknife_pcgc_corr(X1, G1, y1, z1, Q1=None, u1_0=None, u1_1=None, X2=None, G2=None, y2=None, z2=None, Q2=None, u2_0=None, u2_1=None, G12=None, Q12=None, zero_mask=None, num_blocks=200, pcgc_coeff1=None, pcgc_coeff2=None):
@@ -554,6 +555,8 @@ if __name__ == '__main__':
 			rho_pvalue_nocov = permutation_test(G12, y1y2_nocov, is_same, num_perms=args.num_perms)
 			print 'done in %0.2f seconds'%(time.time()-t0)
 			print 'correlation p-value (excluding covariates): %0.5e'%(rho_pvalue_nocov)
+			if (rho_pvalue_nocov < 100.0/args.num_perms):
+				print 'WARNING: p-value is close to the possible limit due to the number of permutations. Please increase the number of permutations to obtain a more accurate result'
 				
 	print
 	print
@@ -606,6 +609,9 @@ if __name__ == '__main__':
 					rho_pvalue_cov = permutation_test(G12*Q12, y1y2_withcov, is_same, num_perms=args.num_perms)
 					print 'done in %0.2f seconds'%(time.time()-t0)
 					print 'correlation p-value (including covariates): %0.5e'%(rho_pvalue_cov)
+					if (rho_pvalue_cov < 100.0/args.num_perms):
+						print 'WARNING: p-value is close to the possible limit due to the number of permutations. Please increase the number of permutations to obtain a more accurate result'
+					
 					
 			
 				
