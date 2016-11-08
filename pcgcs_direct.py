@@ -417,14 +417,16 @@ if __name__ == '__main__':
 	#compute kinship matrices
 	print 'computing kinship matrix for study 1...'
 	t0 = time.time()
-	G1 = pcgcs_utils.symmetrize(blas.dsyrk(1.0/X1.shape[1], X1, lower=0))
+	try: G1 = pcgcs_utils.symmetrize(blas.dsyrk(1.0/X1.shape[1], X1, lower=0))		
+	except: G1 = X1.dot(X1.T) / X1.shape[1]
 	print 'done in %0.2f seconds'%(time.time() - t0)
 	G1_diag = np.diag(G1).copy()
 	
 	if (bed2 is not None):
 		print 'computing kinship matrix for study 2...'
 		t0 = time.time()
-		G2 = pcgcs_utils.symmetrize(blas.dsyrk(1.0/X2.shape[1], X2, lower=0))	
+		try: G2 = pcgcs_utils.symmetrize(blas.dsyrk(1.0/X2.shape[1], X2, lower=0))	
+		except: G2 = X2.dot(X2.T) / X2.shape[1]
 		print 'done in %0.2f seconds'%(time.time() - t0)
 		G2_diag = np.diag(G2).copy()
 
