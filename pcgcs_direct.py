@@ -18,24 +18,29 @@ np.set_printoptions(precision=4, linewidth=200)
 from sklearn.linear_model import LinearRegression, LogisticRegression
 import pcgcs_utils
 
-# def permutation_test(z1, z2, num_perms=10000, chunk_size=1000):
-	# real_stat = z1.dot(z2)
-	# z1_perms = np.empty((chunk_size, z1.shape[0]))
-	# z2_perms = np.empty((chunk_size, z2.shape[0]))
-	# null_stats = np.empty(num_perms)
+
+def permutation_test(G, yyT, is_same, num_perms=10000):
+
+	G = G.copy()
+	G[is_same]=np.nan
+	yyT = yyT.copy()
+	yyT[is_same]=np.nan
 	
-	# for perm1 in xrange(0, num_perms, chunk_size):
-		# last_perm = perm1+chunk_size
-		# if (last_perm >= num_perms): last_perm = num_perms-1
-		# perm_size = last_perm - perm1
+	x = G.flatten()
+	y = yyT.flatten()
+	x = x[~np.isnan(x)]
+	y = y[~np.isnan(y)]
+	
+	real_stat = x.dot(y)
+	null_stats = np.empty(num_perms)
+
+	for i in xrange(num_perms):
+		if (i>0 and i % 100 == 0): print 'finished %d/%d permutations'%(i, num_perms)
+		np.random.shuffle(y)
+		null_stats[i] = x.dot(y)
 		
-		# for i in xrange(perm_size):
-			# z1_perms[i,:] = np.random.permutation(z1)
-			# z2_perms[i,:] = np.random.permutation(z2)
-		# null_stats[perm1 : last_perm] = np.sum(z1_perms[:perm_size] * z2_perms[:perm_size], axis=1)
-	
-	# pvalue = np.mean(np.abs(null_stats) > np.abs(real_stat))
-	# return pvalue
+	pvalue = np.mean(np.abs(null_stats) > np.abs(real_stat))
+	return pvalue
 
 def jackknife_pcgc_corr(X1, G1, y1, z1, Q1=None, u1_0=None, u1_1=None, X2=None, G2=None, y2=None, z2=None, Q2=None, u2_0=None, u2_1=None, G12=None, Q12=None, zero_mask=None, num_blocks=200, pcgc_coeff1=None, pcgc_coeff2=None):
 
@@ -335,7 +340,7 @@ if __name__ == '__main__':
 	parser.add_argument('--n-blocks', metavar='n_blocks', type=int, default=200, help='Number of block jackknife blocks')	
 	parser.add_argument('--center', metavar='center', type=int, default=1, help='whether to center SNPs prior to computing kinship (0 or 1, default 1)')	
 	
-	# parser.add_argument('--num_perms', metavar='num_perms', type=int, default=10000, help='number of permutation testing iterations')
+	parser.add_argument('--num_perms', metavar='num_perms', type=int, default=0, help='number of permutation testing iterations')
 	
 	parser.add_argument('--z1_nocov_out', metavar='z1_nocov_out', default=None, help='output file for Z-score statistics for study 1 without covariates')	
 	parser.add_argument('--z2_nocov_out', metavar='z2_nocov_out', default=None, help='output file for Z-score statistics for study 2 without covariates')	
@@ -543,10 +548,12 @@ if __name__ == '__main__':
 		if (args.jackknife>0): print '(%0.4f)'%(corr_se_nocov),
 		print
 			
-		# if (args.num_perms > 0):
-			# print 'Performing permutation testing with %d permutations...'%(args.num_perms)
-			# rho_pvalue_nocov = permutation_test(z1_nocov, z2_nocov, num_perms=args.num_perms)		
-			# print 'correlation p-value (excluding covariates): %0.5e'%(rho_pvalue_nocov)
+		if (args.num_perms > 0):
+			print 'Performing covariate-less permutation testing with %d permutations...'%(args.num_perms)
+			t0 = time.time()
+			rho_pvalue_nocov = permutation_test(G12, y1y2_nocov, is_same, num_perms=args.num_perms)
+			print 'done in %0.2f seconds'%(time.time()-t0)
+			print 'correlation p-value (excluding covariates): %0.5e'%(rho_pvalue_nocov)
 				
 	print
 	print
@@ -592,11 +599,14 @@ if __name__ == '__main__':
 				print 'genetic covariance: %0.4f (%0.4f)'%(rho_withcov, rho_se_withcov)
 				print 'genetic correlation: %0.4f (%0.4f)'%(rho_withcov / np.sqrt(sig2g_1_withcov * sig2g_2_withcov), corr_se_withcov)
 
-			# if (args.covar2 is not None):
-				# if (args.num_perms > 0):
-					# print 'Performing permutation testing with %d permutations...'%(args.num_perms)
-					# rho_pvalue_cov = permutation_test(z1_withcov, z2_withcov, num_perms=args.num_perms)		
-					# print 'correlation p-value (including covariates): %0.5e'%(rho_pvalue_cov)
+			if (args.covar2 is not None):
+				if (args.num_perms > 0):
+					print 'Performing covariate-aware permutation testing with %d permutations...'%(args.num_perms)
+					t0 = time.time()
+					rho_pvalue_cov = permutation_test(G12*Q12, y1y2_withcov, is_same, num_perms=args.num_perms)
+					print 'done in %0.2f seconds'%(time.time()-t0)
+					print 'correlation p-value (including covariates): %0.5e'%(rho_pvalue_cov)
+					
 			
 				
 	
