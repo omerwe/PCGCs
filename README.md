@@ -154,7 +154,7 @@ Heritability and genetic correlation estimation without covariates requires seve
  If only `--z1_nocov` is provided, PCGC-s will estimate heritability. If `--z2_nocov` is also provided, PCGC-s will also estimate heritability for the second study and genetic correlation between the two studies.
  2. LD information: Heritability and genetic correlation estimation with summary statistics requires LD information. These can be specified in two ways: The first is to specify only the mean LD score of the genetic variants in the analysis, using the `--mean-ld` flag. The second is to provide a file with LD scores of every variant via the options `--ref-ld`. See the example directory for one such file. This must be a csv file with a column called 'snpid' and a column called 'L2'. If possible, it is highly recommended to estimate LD scores in-sample using the [ldsc tool](https://github.com/bulik/ldsc). Using `--ref-ld` will provide slightly more accurate standard error estimates.
  3. Trait prevalence: These can be specified with the arguments `--prev1` and `--prev2`.
- 4. Fraction of cases in the study: These can be specified with the flags `--P1` and `--P2`.
+ 4. Fraction of cases in the studies: These can be specified with the flags `--P1` and `--P2`.
  5. Study sizes: These can be specified with the flags `--n1` and `--n2`.
  6. Information regarding overlapping individuals. This can be specified in several ways:
 	1. The best way to provide information regarding overlapping individuals is via Gty files. These can be produced by `pcgcs_direct.py` via the arguments `--Gty1_nocov_out`, `--Gty2_nocov_out`, and can be  provided to `pcgcs_summary.py` via the arguments `--Gty1_nocov`, `--Gty2_nocov`.
