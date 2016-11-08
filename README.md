@@ -95,7 +95,7 @@ This will toggle jackknife standard error estimates. By default jackknife is tur
 ```
 --num_perms <number of permutations>
 ```
-This flag controls permutation testing to test the hypothesis that the true genetic correlation is 0. Permutation testing is turned off by default. A larger number of permutations enable obtaining more significant p-values.
+This flag controls permutation testing to test the hypothesis that the true genetic correlation is 0. Permutation testing is turned off by default. A larger number of permutations enable obtaining more significant p-values but take up more computation time.
 
 
 <br><br>
