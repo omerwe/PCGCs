@@ -91,6 +91,12 @@ The `--norm` field currently accepts three options: "bed" will use in-sample nor
 ```
 This will toggle jackknife standard error estimates. By default jackknife is turned off because it slows the analysis down substantially. To compute jackknife estimates, please use `--jackknife 1`. Note that the summary-statistics based approximation in the file `pcgcs_summary.py` computes summary statistics very quickly, like LD score regression.
 
+####Permutation testing:
+```
+--num_perms <number of permutations>
+```
+This flag controls permutation testing to test the hypothesis that the true genetic correlation is 0. Permutation testing is turned off by default. A larger number of permutations enable obtaining more significant p-values.
+
 
 <br><br>
 ##Creating Summary Statistics
