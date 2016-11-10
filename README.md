@@ -182,5 +182,11 @@ To account for this deflation, `pcgcs_direct.py` will report the deflation facto
 Similar quantities will also be reported for study 2, and should be passed as well with the flags `--geno2_factor`, `--sqr_geno2_factor`.
 
 
+<br><br>
+-----------------
+Contact
+---------
+For questions and comments, please contact Omer Weissbrod at omerw[at]cs.technion.ac.il
+
 
 
