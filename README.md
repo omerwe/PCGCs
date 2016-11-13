@@ -181,6 +181,10 @@ It is sometimes desirable to regress genotype vectors to the subspace that is or
 To account for this deflation, `pcgcs_direct.py` will report the deflation factors in its output when one of the flags `--num_PCs1`, `--num_PCs2`, is invoked. Afterwards, the reported deflation factors should be passed to `pcgcs_summary.py`. The flag names are `--geno1_factor`, `--sqr_geno1_factor`, which report the deflation in the sum of the eigenvalues and in the sum of the squares of the eigenvalues (which corresponds to the sum of the diagonal of the kinship matrix and the sum of the squares of all kinship coefficients, respectively).
 Similar quantities will also be reported for study 2, and should be passed as well with the flags `--geno2_factor`, `--sqr_geno2_factor`.
 
+<br><br>
+#Important notes
+1. Overlapping individuals (shared between the two studies) will not be automatically detected. Please make sure that overlapping individuals are clearly marked in the plink files by having exactly the same family id and individual id.
+
 
 <br><br>
 -----------------
