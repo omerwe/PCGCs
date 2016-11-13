@@ -185,6 +185,10 @@ Similar quantities will also be reported for study 2, and should be passed as we
 #Important notes
 1. Overlapping individuals (shared between the two studies) will not be automatically detected. Please make sure that overlapping individuals are clearly marked in the plink files by having exactly the same family id and individual id.
 
+2. `pcgcs_direct.py` attemps to avoid storing large matrices in memory, and in particular attempts to avoid computing kinship matrices. Instead, it computes intermediate matrices of size `w x n`, where `w` is the `memory_size` parameter and `n` is the study size. However, 
+permutation testing must compute the full kinship matrix of size `n1 x n2` to enable fast performance. 
+Also note that `pcgcs_direct.py` keeps the full contents of the plink files in memory, which may itself take up large amounts of memory.
+
 
 <br><br>
 -----------------
