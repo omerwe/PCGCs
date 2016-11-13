@@ -66,7 +66,7 @@ The second command will use summary statistics produced by the first command to 
 <br><br>
 ##Computing Heritability and Genetic Correlation Directly
 The file `pcgcs_direct.py` directly estimates heritability and genetic correlation.
-This file can accept either one or two plink files representing distinct genetic studies. If only one file is provided, `pcgcs_direct.py` will estimate heritability. If two files are provided, it will also estimate heritability for the second study and the genetic correlation between the studies.
+This file can accept either one or two plink files representing distinct genetic studies. If only one file is provided, `pcgcs_direct.py` will estimate heritability. If two files are provided, it will also estimate heritability for the second study and the genetic correlation between the studies. Standard errors are computed via a jackknife over individuals.
 The command-line arguments can be broken down into several categories, which we now describe:
 
 ####Raw Data:
@@ -91,11 +91,17 @@ The `--norm` field currently accepts three options: "bed" will use in-sample nor
 ```
 If turned on, `PCGCs_direct.py` will only compute summary statistics without computing the actual heritability and genetic correlation estimates and their standard errors. This will be much faster than the full computation.
 
+####Jackknife options:
+```
+--jackknife 0/1
+```
+This will toggle jackknife-based standard error computations on or off. By default this is turned on. Turning this off will speed up the computations significatly, but standard errors will not be reported.
+
 ####Permutation testing:
 ```
 --num_perms <number of permutations>
 ```
-This flag controls permutation testing to test the hypothesis that the true genetic correlation is 0. Permutation testing is turned off by default. A larger number of permutations enable obtaining more significant p-values but take up more computation time.
+This flag controls permutation testing to test the hypothesis that the true genetic correlation is 0. Permutation testing is turned off by default. A larger number of permutations enable obtaining more significant p-values but take up more computation time. Note that permutation testing requires storing the full kinship matrix of all pairs of individuals in both studies for fast computation.
 
 
 <br><br>
