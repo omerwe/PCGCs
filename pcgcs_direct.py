@@ -310,23 +310,6 @@ def prepare_PCGC(phe, prev, cov, return_intermediate=False):
 	
 	return y_norm, tau_i, pcgc_coeff, ty, u0, u1
 	
-	
-def compute_Q12(phe1, prev1, cov1, phe2, prev2, cov2):
-
-	K1, P1, Ki1, Pi1, phi_tau_i_1 = prepare_PCGC(phe1, prev1, cov1, return_intermediate=True)
-	K2, P2, Ki2, Pi2, phi_tau_i_2 = prepare_PCGC(phe2, prev2, cov2, return_intermediate=True)
-	
-	Q12 = K1*(1-P1) / (P1*(1-K1)) * K2*(1-P2) / (P2*(1-K2)) * np.outer(Pi1, Pi2)
-	Q12 += K1*(1-P1) / (P1*(1-K1)) * np.outer(Pi1, 1-Pi2)
-	Q12 += K2*(1-P2) / (P2*(1-K2)) * np.outer(1-Pi1, Pi2)
-	Q12 += np.outer(1-Pi1, 1-Pi2)
-	Q12 *= np.outer(phi_tau_i_1 / np.sqrt(Pi1*(1-Pi1)) / (Ki1 + (1-Ki1)*(K1*(1-P1))/(P1*(1-K1))), phi_tau_i_2 / np.sqrt(Pi2*(1-Pi2)) / (Ki2 + (1-Ki2)*(K2*(1-P2))/(P2*(1-K2))))
-	
-	return Q12
-
-
-	
-	
 
 if __name__ == '__main__':
 
@@ -640,9 +623,8 @@ if __name__ == '__main__':
 					print
 					print 'Performing covariate-aware permutation testing with %d permutations...'%(args.num_perms)
 					t0 = time.time()
-					Q12 = compute_Q12(phe1, args.prev1, cov1, phe2, args.prev2, cov2)
-					y1y2_withcov = np.outer(ty1, ty2)
-					rho_pvalue_cov = permutation_test(G12*Q12, y1y2_withcov, is_same, num_perms=args.num_perms)
+					y1y2_withcov = np.outer(ty1 * (u1_0 + u1_1), ty2 * (u2_0 + u2_1))
+					rho_pvalue_cov = permutation_test(G12, y1y2_withcov, is_same, num_perms=args.num_perms)
 					print 'done in %0.2f seconds'%(time.time()-t0)
 					print 'genetic correlation p-value (including covariates): %0.5e'%(rho_pvalue_cov)
 					if (rho_pvalue_cov < 100.0/args.num_perms):
