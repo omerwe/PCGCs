@@ -26,6 +26,7 @@ import pcgcs_utils
 	
 	
 def print_sumstats(cov1, u1_0, u1_1, var_t1, cov2, u2_0=None, u2_1=None, var_t2=None, sum_s1=None, sum_s1_sqr=None, sum_s2=None, sum_s2_sqr=None):
+	if (cov1 is None and cov2 is None and sum_s1 is None and sum_s2 is None): return
 	print
 	print
 	print 'summary statistics for subsequent estimation:'
@@ -315,13 +316,11 @@ def compute_Q12(phe1, prev1, cov1, phe2, prev2, cov2):
 	K1, P1, Ki1, Pi1, phi_tau_i_1 = prepare_PCGC(phe1, prev1, cov1, return_intermediate=True)
 	K2, P2, Ki2, Pi2, phi_tau_i_2 = prepare_PCGC(phe2, prev2, cov2, return_intermediate=True)
 	
-	B0 = np.outer(Ki1 + (1-Ki1)*(K1*(1-P1))/(P1*(1-K1)), Ki2 + (1-Ki2)*(K2*(1-P2))/(P2*(1-K2)))
-	u_prefix = np.outer(phi_tau_i_1 / np.sqrt(Pi1*(1-Pi1)), phi_tau_i_2 / np.sqrt(Pi2*(1-Pi2))) / B0
-	u00 = u_prefix * K1*(1-P1) / (P1*(1-K1)) * K2*(1-P2) / (P2*(1-K2)) * np.outer(Pi1, Pi2)
-	u01 = u_prefix * K1*(1-P1) / (P1*(1-K1)) * np.outer(Pi1, 1-Pi2)
-	u10 = u_prefix * K2*(1-P2) / (P2*(1-K2)) * np.outer(1-Pi1, Pi2)
-	u11 = u_prefix * np.outer(1-Pi1, 1-Pi2)
-	Q12 = u00 + u01 + u10 + u11
+	Q12 = K1*(1-P1) / (P1*(1-K1)) * K2*(1-P2) / (P2*(1-K2)) * np.outer(Pi1, Pi2)
+	Q12 += K1*(1-P1) / (P1*(1-K1)) * np.outer(Pi1, 1-Pi2)
+	Q12 += K2*(1-P2) / (P2*(1-K2)) * np.outer(1-Pi1, Pi2)
+	Q12 += np.outer(1-Pi1, 1-Pi2)
+	Q12 *= np.outer(phi_tau_i_1 / np.sqrt(Pi1*(1-Pi1)) / (Ki1 + (1-Ki1)*(K1*(1-P1))/(P1*(1-K1))), phi_tau_i_2 / np.sqrt(Pi2*(1-Pi2)) / (Ki2 + (1-Ki2)*(K2*(1-P2))/(P2*(1-K2))))
 	
 	return Q12
 
@@ -562,6 +561,7 @@ if __name__ == '__main__':
 		print
 			
 		if (args.num_perms > 0):
+			print
 			print 'Performing covariate-less permutation testing with %d permutations...'%(args.num_perms)
 			t0 = time.time()
 			y1y2_nocov = np.outer(y1_norm, y2_norm)
@@ -570,7 +570,7 @@ if __name__ == '__main__':
 			G12[is_same]=0			
 			rho_pvalue_nocov = permutation_test(G12, y1y2_nocov, is_same, num_perms=args.num_perms)
 			print 'done in %0.2f seconds'%(time.time()-t0)
-			print 'correlation p-value (excluding covariates): %0.5e'%(rho_pvalue_nocov)
+			print 'genetic correlation p-value (excluding covariates): %0.5e'%(rho_pvalue_nocov)
 			if (rho_pvalue_nocov < 100.0/args.num_perms):
 				print 'WARNING: p-value is close to the possible limit due to the number of permutations. Please increase the number of permutations to obtain a more accurate result'
 				
@@ -637,13 +637,14 @@ if __name__ == '__main__':
 
 			if (args.covar2 is not None):
 				if (args.num_perms > 0):
+					print
 					print 'Performing covariate-aware permutation testing with %d permutations...'%(args.num_perms)
 					t0 = time.time()
 					Q12 = compute_Q12(phe1, args.prev1, cov1, phe2, args.prev2, cov2)
 					y1y2_withcov = np.outer(ty1, ty2)
 					rho_pvalue_cov = permutation_test(G12*Q12, y1y2_withcov, is_same, num_perms=args.num_perms)
 					print 'done in %0.2f seconds'%(time.time()-t0)
-					print 'correlation p-value (including covariates): %0.5e'%(rho_pvalue_cov)
+					print 'genetic correlation p-value (including covariates): %0.5e'%(rho_pvalue_cov)
 					if (rho_pvalue_cov < 100.0/args.num_perms):
 						print 'WARNING: p-value is close to the possible limit due to the number of permutations. Please increase the number of permutations to obtain a more accurate result'
 					
