@@ -19,17 +19,160 @@ from sklearn.linear_model import LinearRegression, LogisticRegression
 import pcgcs_utils
 
 
-def permutation_test(G, yyT, is_same, num_perms=10000):
+# def print_memory():
+	# import psutil
+	# process = psutil.Process(os.getpid())
+	# print 'memory usage:', process.memory_info().rss
+	
+	
+def print_sumstats(cov1, u1_0, u1_1, var_t1, cov2, u2_0=None, u2_1=None, var_t2=None, sum_s1=None, sum_s1_sqr=None, sum_s2=None, sum_s2_sqr=None):
+	print
+	print
+	print 'summary statistics for subsequent estimation:'
+	print '-----------------------------------'
+		
+	if (cov1 is not None):
+		print 'mean Q for study 1 (mean_Q1): %0.4f'%(np.mean((u1_0 + u1_1)**2))
+		print 'liability variance explained by covariates (var_t1): %0.4f'%(var_t1)
 
-	G = G.copy()
-	G[is_same]=np.nan
-	yyT = yyT.copy()
-	yyT[is_same]=np.nan
+	if (cov2 is not None):
+		print 'mean Q for study 2 (mean_Q2): %0.4f'%(np.mean((u2_0 + u2_1)**2))
+		print 'liability variance explained by covariates (var_t2): %0.4f'%(var_t2)
+		
+		
+	if (sum_s1 is not None):
+		print 'study 1 genotypes deflation factor (geno1_factor): %0.6f'%((sum_s1 - s1.sum()) / sum_s1)
+		print 'study 1 squared genotypes deflation factor  (sqr_geno1_factor): %0.6f'%((sum_s1_sqr - np.sum(s1**2)) / sum_s1_sqr)
+		
+	if (sum_s2 is not None):
+		print 'study 2 genotypes deflation factor (geno2_factor): %0.6f'%((sum_s2 - s2.sum()) / sum_s2)
+		print 'study 2 squared genotypes deflation factor  (sqr_geno2_factor): %0.6f'%((sum_s2_sqr - np.sum(s2**2)) / sum_s2_sqr)
+		
+	print
+	print
+		
+
+def pcgc_jackknife_sig2g(X, y, numer_sig2g, denom_sig2g, pcgc_coeff=1.0, u0=None, u1=None, window_size=1000):
+	
+	if (u0 is not None):
+		u_sqr = (u0 + u1)**2
+		qy = y * (u0+u1)
+	else:
+		qy = y
+		
+	if (window_size is None or window_size<0): window_size = X.shape[0]
+	
+	estimators_arr = np.empty(X.shape[0])
+	for i in xrange(0, X.shape[0], window_size):
+		X_i = X[i:i+window_size]
+		G_i = X_i.dot(X.T) / X.shape[1]
+		indices0 = np.arange(G_i.shape[0])
+		G_i[indices0, i+indices0]=0
+		
+		for j in xrange(G_i.shape[0]):
+			numer_sig2g_i = numer_sig2g - 2*G_i[j].dot(qy[i+j]*qy)
+			if (u0 is None): denom_sig2g_i = denom_sig2g - 2*G_i[j].dot(G_i[j])
+			else: denom_sig2g_i = denom_sig2g - 2*G_i[j].dot(G_i[j] * u_sqr[i+j]*u_sqr)			
+			estimators_arr[i+j] = numer_sig2g_i / denom_sig2g_i
+				   
+	estimators_arr /= pcgc_coeff
+	sig2g_var = (X.shape[0]-1)/float(X.shape[0]) * np.sum((estimators_arr - estimators_arr.mean())**2)
+	return np.sqrt(sig2g_var)
+		
+	
+	
+
+def pcgc_jackknife_corr(X1, X2, y1, y2,
+	numer_sig2g1, denom_sig2g1, numer_sig2g2, denom_sig2g2, numer_rho, denom_rho,
+	pcgc_coeff1=1.0, pcgc_coeff2=1.0, pcgc_coeff12=1.0, 
+	u1_0=None, u1_1=None, u2_0=None, u2_1=None,
+	is_same=None, window_size=1000):
+	
+	if (window_size is None or window_size<0): window_size = X1.shape[0]
+	
+	if (u1_0 is not None):
+		u1_sqr = (u1_0 + u1_1)**2
+		u2_sqr = (u2_0 + u2_1)**2
+		qy1 = y1 * (u1_0+u1_1)
+		qy2 = y2 * (u2_0+u2_1)
+	else:
+		qy1 = y1
+		qy2 = y2
+	
+	sig2g1_estimators_arr = np.empty(X1.shape[0])
+	sig2g2_estimators_arr = np.empty(X2.shape[0])
+	rho_estimators_arr = np.empty(X1.shape[0] + X2.shape[0])
+	
+	
+	#exclude individuals from study 1
+	for i in xrange(0, X1.shape[0], window_size):
+		X1_i = X1[i:i+window_size]
+		G_i = X1_i.dot(X1.T) / X1.shape[1]
+		indices0 = np.arange(G_i.shape[0])
+		G_i[indices0, i+indices0]=0
+		
+		for j in xrange(G_i.shape[0]):
+			numer_sig2g1_i = numer_sig2g1 - 2*G_i[j].dot(qy1[i+j]*qy1)
+			if (u1_0 is None): denom_sig2g1_i = denom_sig2g1 - 2*G_i[j].dot(G_i[j])
+			else: denom_sig2g1_i = denom_sig2g1 - 2*G_i[j].dot(G_i[j] * u1_sqr[i+j]*u1_sqr)			
+			sig2g1_estimators_arr[i+j] = numer_sig2g1_i / denom_sig2g1_i
+			
+		G_i = X1_i.dot(X2.T) / X1.shape[1]
+		G_i[is_same[i:i+window_size]]=0			
+		for j in xrange(G_i.shape[0]):
+			numer_rho_i = numer_rho - G_i[j].dot(qy1[i+j]*qy2)
+			if (u1_0 is None): denom_rho_i = denom_rho - G_i[j].dot(G_i[j])
+			else: denom_rho_i = denom_rho - G_i[j].dot(G_i[j] * u1_sqr[i+j]*u2_sqr)			
+			rho_estimators_arr[i+j] = numer_rho_i / denom_rho_i
+			
+			
+	#exclude individuals from study 2
+	for i in xrange(0, X2.shape[0], window_size):
+		X2_i = X2[i:i+window_size]
+		G_i = X2_i.dot(X2.T) / X1.shape[1]
+		indices0 = np.arange(G_i.shape[0])
+		G_i[indices0, i+indices0]=0
+		
+		for j in xrange(G_i.shape[0]):
+			numer_sig2g2_i = numer_sig2g2 - G_i[j].dot(qy2[i+j]*qy2)
+			if (u2_0 is None): denom_sig2g2_i = denom_sig2g2 - 2*G_i[j].dot(G_i[j])
+			else: denom_sig2g2_i = denom_sig2g2 - 2*G_i[j].dot(G_i[j] * u2_sqr[i+j]*u2_sqr)			
+			sig2g2_estimators_arr[i+j] = numer_sig2g2_i / denom_sig2g2_i
+			
+		G_i = X2_i.dot(X1.T) / X1.shape[1]
+		G_i[is_same.T[i:i+window_size]]=0
+		for j in xrange(G_i.shape[0]):
+			numer_rho_i = numer_rho - G_i[j].dot(qy1[i+j]*qy2)
+			if (u1_0 is None): denom_rho_i = denom_rho - G_i[j].dot(G_i[j])
+			else: denom_rho_i = denom_rho - G_i[j].dot(G_i[j] * u2_sqr[i+j]*u1_sqr)			
+			rho_estimators_arr[X1.shape[0]+i+j] = numer_rho_i / denom_rho_i			
+			
+				   
+	sig2g1_estimators_arr /= pcgc_coeff1
+	sig2g2_estimators_arr /= pcgc_coeff2
+	rho_estimators_arr /= pcgc_coeff12	
+	
+	sig2g1_var = (X1.shape[0]-1)/float(X1.shape[0]) * np.sum((sig2g1_estimators_arr - sig2g1_estimators_arr.mean())**2)
+	sig2g2_var = (X2.shape[0]-1)/float(X2.shape[0]) * np.sum((sig2g2_estimators_arr - sig2g2_estimators_arr.mean())**2)	
+	rho_var    = (rho_estimators_arr.shape[0]-1)/float(rho_estimators_arr.shape[0]) * np.sum((rho_estimators_arr - rho_estimators_arr.mean())**2)
+	
+	#compute genetic correlation pseudo-values
+	sig2g1 = numer_sig2g1 / denom_sig2g1 / pcgc_coeff1
+	sig2g2 = numer_sig2g2 / denom_sig2g2 / pcgc_coeff2
+	sig2g1_estimators_arr = np.concatenate((sig2g1_estimators_arr, np.ones(X2.shape[0])*sig2g1))
+	sig2g2_estimators_arr = np.concatenate((np.ones(X1.shape[0])*sig2g2, sig2g2_estimators_arr))
+	corr_estimators_arr = rho_estimators_arr / np.sqrt(sig2g1_estimators_arr * sig2g2_estimators_arr)
+	corr_var = (corr_estimators_arr.shape[0]-1)/float(corr_estimators_arr.shape[0]) * np.sum((corr_estimators_arr - corr_estimators_arr.mean())**2)
+	
+	return np.sqrt(sig2g1_var), np.sqrt(sig2g2_var), np.sqrt(rho_var), np.sqrt(corr_var)
+		
+		
+def permutation_test(G, yyT, is_same, num_perms=10000):
 	
 	x = G.flatten()
 	y = yyT.flatten()
-	x = x[~np.isnan(x)]
-	y = y[~np.isnan(y)]
+	x = x[~(is_same.flatten())]	
+	y = y[~(is_same.flatten())]
 	
 	real_stat = x.dot(y)
 	null_stats = np.empty(num_perms)
@@ -43,175 +186,48 @@ def permutation_test(G, yyT, is_same, num_perms=10000):
 	if (pvalue < 1.0/num_perms): pvalue = 1.0/num_perms
 	return pvalue
 
-def jackknife_pcgc_corr(X1, G1, y1, z1, Q1=None, u1_0=None, u1_1=None, X2=None, G2=None, y2=None, z2=None, Q2=None, u2_0=None, u2_1=None, G12=None, Q12=None, zero_mask=None, num_blocks=200, pcgc_coeff1=None, pcgc_coeff2=None):
 
-	if (pcgc_coeff1 is None): assert pcgc_coeff2 is None
-	if (pcgc_coeff1 is not None and X2 is not None): assert pcgc_coeff2 is not None
+	
+#compute the PCGC denominator with limited memory, by only storing matrices of size (window_size x sample_size)
+def pcgc_denom_lowmem(X1, X2, u1_0, u1_1, u2_0, u2_1, is_same=None, window_size=1000):
 
-	if (Q1 is None):
-		G1Q=G1.copy()
-		z1 = z1 * np.sqrt(y1.shape[0] / float(X1.shape[1]))
-	else:
-		G1Q = G1*Q1
-		z1 = z1 / np.sqrt(X1.shape[1])
-	
-	if (X2 is not None):
-		if (Q2 is None):
-			G2Q=G2.copy()
-			z2 = z2 * np.sqrt(y2.shape[0] / float(X1.shape[1]))
-			G12Q = G12.copy()
-		else:
-			G2Q = G2*Q2
-			z2 = z2 / np.sqrt(X1.shape[1])
-			G12Q = G12*Q12
-	
-	#determine window size
-	m = X1.shape[1]
-	window_size = int(np.ceil(float(m) / float(num_blocks)))
-	real_num_blocks = int(np.ceil(m / float(window_size)))
-	m_jack = m - window_size
-	
-	numerator_sig2g1 = np.sum(G1Q * np.outer(y1, y1))	
-	denominator_sig2g1 = np.sum(G1Q**2)
+	denom=0
+	if (window_size is None or window_size<0): window_size = X1.shape[0]
+	for i in xrange(0, X1.shape[0], window_size):
+		G_i = X1[i:i+window_size].dot(X2.T)
+		if (is_same is None):
+			indices0 = np.arange(G_i.shape[0])
+			G_i[indices0, i+indices0]=0
+		else: G_i[is_same[i:i+window_size]] = 0			
+		u1_0_i = u1_0[i:i+window_size]
+		u1_1_i = u1_1[i:i+window_size]
+		denom += np.einsum('ij,ij,i,j',G_i,G_i,u1_0_i**2,u2_0**2) + np.einsum('ij,ij,i,j',G_i,G_i,u1_0_i**2,u2_1**2) + np.einsum('ij,ij,i,j',G_i,G_i,u1_1_i**2,u2_0**2) + np.einsum('ij,ij,i,j',G_i,G_i,u1_1_i**2,u2_1**2)
+		denom += 2 * (
+			  np.einsum('ij,ij,i,j->', G_i, G_i, u1_0_i**2,u2_0*u2_1)
+			+ np.einsum('ij,ij,i,j->', G_i, G_i, u1_0_i*u1_1_i,u2_0**2)
+			+ np.einsum('ij,ij,i,j->', G_i, G_i, u1_0_i*u1_1_i,u2_0*u2_1)
+			+ np.einsum('ij,ij,i,j->', G_i, G_i, u1_0_i*u1_1_i,u2_1*u2_0)
+			+ np.einsum('ij,ij,i,j->', G_i, G_i, u1_0_i*u1_1_i,u2_1**2)
+			+ np.einsum('ij,ij,i,j->', G_i, G_i, u1_1_i**2, u2_1*u2_0)			
+		)
+	denom /= X1.shape[1]**2
+	return denom
 
+	
+#compute the PCGC denominator with limited memory, by only storing matrices of size (window_size x sample_size), without covariates
+def pcgc_denom_lowmem_nocov(X1, X2, is_same=None, window_size=1000):
 
-	#adjust statistics to use a reduced number of SNPs
-	G1Q *= (float(m) / float(m_jack))
-	numerator_sig2g1_jack = numerator_sig2g1 * (float(m) / float(m_jack))
-	denominator_sig2g1_jack = denominator_sig2g1 * (float(m) / float(m_jack))**2
-	X1n = X1 / np.sqrt(m_jack)
-	X1ny = X1n * y1[:, np.newaxis]
-	sig2g_1_estimators = np.empty(real_num_blocks)
-	
-	if (X2 is not None):
-		numerator_sig2g2 = np.sum(G2Q * np.outer(y2, y2))
-		numerator_rho    = np.sum(G12Q * np.outer(y1, y2))
-		denominator_sig2g2 = np.sum(G2Q**2)
-		denominator_rho    = np.sum(G12Q**2)	
-		corr_estimator = numerator_rho/denominator_rho / np.sqrt(numerator_sig2g1/denominator_sig2g1  *  numerator_sig2g2/denominator_sig2g2)	
-		G2Q *= (float(m) / float(m_jack))
-		G12Q *= (float(m) / float(m_jack))
-		numerator_sig2g2_jack = numerator_sig2g2 * (float(m) / float(m_jack))
-		numerator_rho_jack    = numerator_rho    * (float(m) / float(m_jack))
-		denominator_sig2g2_jack = denominator_sig2g2 * (float(m) / float(m_jack))**2
-		denominator_rho_jack    = denominator_rho    * (float(m) / float(m_jack))**2
-		X2n = (X2 / np.sqrt(m_jack))
-		X2ny = X2n * y2[:, np.newaxis]
-		sig2g_2_estimators = np.empty(real_num_blocks)
-		rho_estimators = np.empty(real_num_blocks)
-		corr_estimators = np.empty(real_num_blocks)
-		
-	
-	if (Q1 is None): X1ny_sqr = (X1ny**2).sum(axis=0)		
-	else: X1ny_sqr = ((X1n * (y1 * (u1_0 + u1_1))[:, np.newaxis])**2).sum(axis=0)				
-	sum_diag1_jack = np.sum(X1ny_sqr)
-	z1 *= np.sqrt(m/float(m_jack))
-	z1_sqr = z1**2
-	sum_z1_sqr_jack = np.sum(z1_sqr)
-	
-	
-	if (X2 is not None):
-		if (Q2 is None): X2ny_sqr = (X2ny**2).sum(axis=0)
-		else: X2ny_sqr = ((X2n * (y2 * (u2_0 + u2_1))[:, np.newaxis])**2).sum(axis=0)		
-		sum_diag2_jack = np.sum(X2ny_sqr)
-		z2 *= np.sqrt(m/float(m_jack))
-		z2_sqr = z2**2
-		sum_z2_sqr_jack = np.sum(z2_sqr)
-		z1z2 = z1*z2
-		sum_z1z2_jack = np.sum(z1z2)
-		
-		
-		if (is_same is not None and np.any(is_same)):
-			has_overlap = True
-			is_same_1 = np.where(is_same)[0]
-			is_same_2 = np.where(is_same)[1]
-			if (Q1 is None): X1_overlap_ny = X1[is_same_1] / np.sqrt(m_jack) * y1[is_same_1, np.newaxis]
-			else: X1_overlap_ny = X1[is_same_1] / np.sqrt(m_jack) * (y1*(u1_0+u1_1))[is_same_1, np.newaxis]
-			if (Q2 is None): X2_overlap_ny = X2[is_same_2] / np.sqrt(m_jack) * y2[is_same_2, np.newaxis]
-			else: X2_overlap_ny = X2[is_same_2] / np.sqrt(m_jack) * (y2*(u2_0+u2_1))[is_same_2, np.newaxis]
-			
-			X12_overlap_ny = (X1_overlap_ny*X2_overlap_ny).sum(axis=0)
-			sum_same12_jack = np.sum(X12_overlap_ny)
-			
-		else:
-			has_overlap = False
-	
-	for iter, snp1 in enumerate(xrange(0, m, window_size)):
-	
-		#numerators
-		# # # temp_sig2g1 = X1ny[:,snp1:snp1+window_size].dot(X1ny[:, snp1:snp1+window_size].T)
-		# # # np.fill_diagonal(temp_sig2g1, 0)		
-		# # # if (Q1 is not None): temp_sig2g1 *= Q1
-		# # # numer_sig2g1_jack_old = numerator_sig2g1_jack - np.sum(temp_sig2g1)
-		
-		numer_sig2g1_jack = (sum_z1_sqr_jack - z1_sqr[snp1:snp1+window_size].sum()) - (sum_diag1_jack - X1ny_sqr[snp1:snp1+window_size].sum())
-		#assert np.isclose(numer_sig2g1_jack, numer_sig2g1_jack_old)
-		
-		
-		if (X2 is not None):
-			# # # temp_sig2g2 = X2ny[:,snp1:snp1+window_size].dot(X2ny[:, snp1:snp1+window_size].T)
-			# # # np.fill_diagonal(temp_sig2g2, 0)		
-			# # # if (Q2 is not None): temp_sig2g2 *= Q2
-			# # # numer_sig2g2_jack_old = numerator_sig2g2_jack - np.sum(temp_sig2g2)
-			# # # temp_rho = X1ny[:,snp1:snp1+window_size].dot(X2ny[:, snp1:snp1+window_size].T)
-			# # # temp_rho[zero_mask]=0
-			# # # if (Q12 is not None): temp_rho *= Q12
-			# # # numer_rho_jack_old = numerator_rho_jack - np.sum(temp_rho)		
-						
-			numer_sig2g2_jack = (sum_z2_sqr_jack - z2_sqr[snp1:snp1+window_size].sum()) - (sum_diag2_jack - X2ny_sqr[snp1:snp1+window_size].sum())
-			#assert np.isclose(numer_sig2g2_jack, numer_sig2g2_jack_old)
-			
-
-			numer_rho_jack = (sum_z1z2_jack - z1z2[snp1:snp1+window_size].sum()) 
-			if has_overlap: numer_rho_jack -= (sum_same12_jack - X12_overlap_ny[snp1:snp1+window_size].sum())
-			#assert np.allclose(numer_rho_jack, numer_rho_jack_old)
-			
-			
-		
-		#denominators
-		temp_sig2g1 = X1n[:,snp1:snp1+window_size].dot(X1n[:,snp1:snp1+window_size].T)
-		np.fill_diagonal(temp_sig2g1, 0)			
-		if (Q1 is not None): temp_sig2g1 *= Q1
-		denom_sig2g1_jack = denominator_sig2g1_jack - 2*np.einsum('ij,ij->', temp_sig2g1,G1Q) + np.einsum('ij,ij->',temp_sig2g1,temp_sig2g1)
-		
-		if (X2 is not None):
-			temp_sig2g2 = X2n[:,snp1:snp1+window_size].dot(X2n[:,snp1:snp1+window_size].T)
-			np.fill_diagonal(temp_sig2g2, 0)			
-			if (Q2 is not None): temp_sig2g2 *= Q2
-			denom_sig2g2_jack = denominator_sig2g2_jack - 2*np.einsum('ij,ij->', temp_sig2g2,G2Q) + np.einsum('ij,ij->',temp_sig2g2,temp_sig2g2)
-			
-			temp_rho = X1n[:,snp1:snp1+window_size].dot(X2n[:,snp1:snp1+window_size].T)
-			temp_rho[zero_mask] = 0
-			if (Q12 is not None): temp_rho *= Q12	
-			denom_rho_jack = denominator_rho_jack - 2*np.einsum('ij,ij->', temp_rho,G12Q) + np.einsum('ij,ij->',temp_rho,temp_rho)
-
-		sig2g_1_estimators[iter] = numer_sig2g1_jack/denom_sig2g1_jack		
-		if (X2 is not None):
-			sig2g_2_estimators[iter] = numer_sig2g2_jack/denom_sig2g2_jack
-			rho_estimators[iter] = numer_rho_jack / denom_rho_jack
-		if (iter % 100 == 0 and snp1 > 0): print '\tJackknife finished %d/%d blocks'%(iter, real_num_blocks)	
-	assert iter == len(sig2g_1_estimators)-1
-	
-	corr_estimators = rho_estimators / np.sqrt(sig2g_1_estimators * sig2g_2_estimators)	
-	if (pcgc_coeff1 is not None):
-		rho_estimators /= np.sqrt(pcgc_coeff1 * pcgc_coeff2)
-		sig2g_1_estimators /= pcgc_coeff1
-		sig2g_2_estimators /= pcgc_coeff2
-		
-	sig2g1_var = (real_num_blocks-1)/float(real_num_blocks) * np.sum((sig2g_1_estimators - sig2g_1_estimators.mean())**2)
-	if (X2 is not None):
-		sig2g2_var = (real_num_blocks-1)/float(real_num_blocks) * np.sum((sig2g_2_estimators - sig2g_2_estimators.mean())**2)
-		rho_var  = (real_num_blocks-1)/float(real_num_blocks) * np.sum((rho_estimators - rho_estimators.mean())**2)
-		corr_var = (real_num_blocks-1)/float(real_num_blocks) * np.sum((corr_estimators - corr_estimators.mean())**2)
-		#print '\tjacknkife corr std estimator: %0.3f'%(np.sqrt(corr_var))	
-	
-	if (X2 is None): return np.sqrt(sig2g1_var)
-	return np.sqrt(sig2g1_var), np.sqrt(sig2g2_var), np.sqrt(rho_var), np.sqrt(corr_var)
-	
-	
-	
-	
-
+	denom=0
+	if (window_size is None or window_size<0): window_size = X1.shape[0]
+	for i in xrange(0, X1.shape[0], window_size):
+		G_i = X1[i:i+window_size].dot(X2.T)
+		if (is_same is None):
+			indices0 = np.arange(G_i.shape[0])
+			G_i[indices0, i+indices0]=0
+		else: G_i[is_same[i:i+window_size]] = 0			
+		denom += np.einsum('ij,ij',G_i,G_i)
+	denom /= X1.shape[1]**2
+	return denom	
 
 
 def write_sumstats(z, n, snpNames, out_file):
@@ -284,14 +300,14 @@ def prepare_PCGC(phe, prev, cov, return_intermediate=False):
 	u_prefix = phi_tau_i / np.sqrt(Pi*(1-Pi)) / (Ki + (1-Ki)*(K*(1-P))/(P*(1-K)))
 	u0 = u_prefix * K*(1-P) / (P*(1-K)) * Pi
 	u1 = u_prefix * (1-Pi)
-	Q = np.outer(u0,u0) + np.outer(u0,u1) + np.outer(u1,u0) + np.outer(u1,u1)
+	#Q = np.outer(u0,u0) + np.outer(u0,u1) + np.outer(u1,u0) + np.outer(u1,u1)
 	
 	ty = (y-Pi) / np.sqrt(Pi * (1-Pi))
 	
 	if return_intermediate:
 		return K, P, Ki, Pi, phi_tau_i
 	
-	return y_norm, tau_i, pcgc_coeff, ty, Q, u0, u1#, logreg.intercept_[0], logreg.coef_[0]
+	return y_norm, tau_i, pcgc_coeff, ty, u0, u1
 	
 	
 def compute_Q12(phe1, prev1, cov1, phe2, prev2, cov2):
@@ -319,6 +335,7 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 
 	#parameters for exact computations
+	parser.add_argument('--sumstats_only', metavar='sumstats_only', type=int, default=0, help='If set to 1, PCGC-s will only compute summary statistics and print them to files, without estimating variance components (default 0)')	
 	parser.add_argument('--bfile1', metavar='bfile1', required=True, help='plink file for study 1')
 	parser.add_argument('--bfile2', metavar='bfile2', default=None, help='plink file for study 2')
 	parser.add_argument('--pheno1', metavar='pheno1', required=True, help='phenotypes file for study 1')
@@ -336,12 +353,12 @@ if __name__ == '__main__':
 	parser.add_argument('--numPCs2', metavar='numPCs2', type=int, default=0, help='#PCs to regress out of dataset 2')	
 	parser.add_argument('--chr', metavar='chr', type=int, default=None, help='use only SNPs from a specific chromosome')	
 	parser.add_argument('--missingPhenotype', metavar='missingPhenotype', default='-9', help='identifier for missing values (default: -9)')
-	
-	parser.add_argument('--jackknife', metavar='jackknife', type=int, default=0, help='Whether to estimate standard errors via jackknife (0 or 1, default 0)')	
-	parser.add_argument('--n-blocks', metavar='n_blocks', type=int, default=200, help='Number of block jackknife blocks')	
 	parser.add_argument('--center', metavar='center', type=int, default=1, help='whether to center SNPs prior to computing kinship (0 or 1, default 1)')	
+
 	
-	parser.add_argument('--num_perms', metavar='num_perms', type=int, default=0, help='number of permutation testing iterations')
+	parser.add_argument('--mem_size', metavar='mem_size', type=int, default=1000, help='The maximum number of rows in each kinship matrix to be computed. Larger values will improve run-time take up more memory')
+	parser.add_argument('--jackknife', metavar='jackknife', type=int, default=1, help='Whether jackknife-based standard errors will be computed (0 or 1, default 1)')
+	parser.add_argument('--num_perms', metavar='num_perms', type=int, default=0, help='number of permutation testing iterations')	
 	
 	parser.add_argument('--z1_nocov_out', metavar='z1_nocov_out', default=None, help='output file for Z-score statistics for study 1 without covariates')	
 	parser.add_argument('--z2_nocov_out', metavar='z2_nocov_out', default=None, help='output file for Z-score statistics for study 2 without covariates')	
@@ -380,8 +397,10 @@ if __name__ == '__main__':
 	if (args.covar2 is None):
 		assert args.z2_cov_out is None, 'z2_cov_out cannor be specified without covar1'
 		assert args.Gty2_cov_out is None, 'Gty2_out cannor be specified without covar1'
-	if (args.jackknife == 0):
-		print 'jackknife standard errors will not be computed. To compute standard errors, please use the option "--jackknife 1"'
+		
+	if (args.sumstats_only > 0):
+		assert args.z1_nocov_out is not None or args.z1_cov_out is not None, 'z1_nocov_out or z1_cov_out must be defined when sumstats_only=1'
+		assert args.num_perms==0, 'permutation testing can not be used when sumstats_only=1'
 	#####################################################################################
 	
 	
@@ -389,14 +408,16 @@ if __name__ == '__main__':
 	bed1, phe1, cov1, bed2, phe2, cov2 = pcgcs_utils.read_SNPs(bfile1=args.bfile1, pheno1=args.pheno1, prev1=args.prev1, covar1=args.covar1, keep1=args.keep1, bfile2=args.bfile2, pheno2=args.pheno2, prev2=args.prev2, covar2=args.covar2, keep2=args.keep2, extract=args.extract, missingPhenotype=args.missingPhenotype, chr=args.chr, norm=args.norm, maf=args.maf, center=args.center>0)
 	
 	#regress out PCs
-	if (args.numPCs1 > 0):
+	if (args.numPCs1 == 0): sum_s1, sum_s1_sqr = None, None
+	else:
 		print 'Regressing top %d PCs out of bfile 1'%(args.numPCs1)
 		bed1.val, U1, s1, sum_s1, sum_s1_sqr = pcgcs_utils.regress_PCs(bed1.val, args.numPCs1)
 		print 'done'
 		if (cov1 is None): cov1 = U1
 		else: cov1 = np.concatenate((cov1, U1), axis=1)
 		
-	if (args.numPCs2 > 0):
+	if (args.numPCs2 == 0): sum_s2, sum_s2_sqr = None, None
+	else:
 		print 'Regressing top %d PCs out of bfile 2'%(args.numPCs2)
 		bed2.val, U2, s2, sum_s2, sum_s2_sqr = pcgcs_utils.regress_PCs(bed2.val, args.numPCs2)
 		print 'done'
@@ -404,80 +425,29 @@ if __name__ == '__main__':
 		else: cov2 = np.concatenate((cov2, U2), axis=1)
 	
 	
+	#print plink file sizes
 	X1 = bed1.val
 	print 'bfile1: %d cases, %d controls, %d SNPs'%(np.sum(phe1>phe1.mean()), np.sum(phe1<=phe1.mean()), bed1.sid.shape[0])
+	if (args.sumstats_only==0 or args.Gty1_nocov_out is not None or args.Gty1_cov_out is not None): G1_diag = np.mean(X1**2, axis=1)
 	
 	
 	if (bed2 is not None):
 		X2 = bed2.val
-		print 'bfile2: %d cases, %d controls, %d SNPs'%(np.sum(phe2>phe2.mean()), np.sum(phe2<=phe2.mean()), bed2.sid.shape[0])
-		
-
-	
-	#compute kinship matrices
-	print 'computing kinship matrix for study 1...'
-	t0 = time.time()
-	try: G1 = pcgcs_utils.symmetrize(blas.dsyrk(1.0/X1.shape[1], X1, lower=0))		
-	except: G1 = X1.dot(X1.T) / X1.shape[1]
-	print 'done in %0.2f seconds'%(time.time() - t0)
-	G1_diag = np.diag(G1).copy()
-	
-	if (bed2 is not None):
-		print 'computing kinship matrix for study 2...'
-		t0 = time.time()
-		try: G2 = pcgcs_utils.symmetrize(blas.dsyrk(1.0/X2.shape[1], X2, lower=0))	
-		except: G2 = X2.dot(X2.T) / X2.shape[1]
-		print 'done in %0.2f seconds'%(time.time() - t0)
-		G2_diag = np.diag(G2).copy()
-
-		print 'computing kinship matrix between studies 1 and 2...'
-		G12 = X1.dot(X2.T) / X1.shape[1]				
-		print 'done in %0.2f seconds'%(time.time() - t0)
-
-		print 'marking correlations between overlapping individuals...'
-		is_same = np.zeros(G12.shape, dtype=np.bool)
-		num_overlap=0
-		for i1, ind1 in enumerate(bed1.iid[:,1]):
-			for i2, ind2 in enumerate(bed2.iid[:,1]):
-				if (ind1 == ind2 or G12[i1,i2]>0.7):
-					is_same[i1,i2]=True
-					num_overlap+=1
-					
-		# print 'marking random overlapping individuals!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-		# for i1 in np.random.permutation(len(phe1))[:20]:
-			# for i2 in np.random.permutation(len(phe2))[:20]:
-				# is_same[i1,i2] = True; num_overlap+=1
-		
-		print 'found %d overlapping individuals'%(num_overlap)		
+		if (args.sumstats_only==0 or args.Gty2_nocov_out is not None or args.Gty2_cov_out is not None): G2_diag = np.mean(X2**2, axis=1)		
+		print 'bfile2: %d cases, %d controls, %d SNPs'%(np.sum(phe2>phe2.mean()), np.sum(phe2<=phe2.mean()), bed2.sid.shape[0])		
 
 		
 	#PCGC initial computations
-	y1_norm, tau_i_1, pcgc_coeff1, ty1, Q1, u1_0, u1_1 = prepare_PCGC(phe1, args.prev1, cov1)
-	y1y1_nocov = np.outer(y1_norm, y1_norm)
-	y1y1_withcov = np.outer(ty1, ty1)
+	y1_norm, tau_i_1, pcgc_coeff1, ty1, u1_0, u1_1 = prepare_PCGC(phe1, args.prev1, cov1)
 	if (cov1 is not None): var_t1 = varLiab_covar(args.prev1, tau_i_1, phe1)
 	else: var_t1=0
 		
-	if (bed2 is not None):
-		y2_norm, tau_i_2, pcgc_coeff2, ty2, Q2, u2_0, u2_1 = prepare_PCGC(phe2, args.prev2, cov2)
-		y2y2_nocov = np.outer(y2_norm, y2_norm)
-		y2y2_withcov = np.outer(ty2, ty2)
+	if (bed2 is None): u2_0, u2_1, var_t2 = None, None, None
+	else:
+		y2_norm, tau_i_2, pcgc_coeff2, ty2, u2_0, u2_1 = prepare_PCGC(phe2, args.prev2, cov2)
 		if (cov2 is not None): var_t2 = varLiab_covar(args.prev2, tau_i_2, phe2)
-		else: var_t2=0
-		
-		#computations for cross-study estimation
-		y1y2_nocov = np.outer(y1_norm, y2_norm)
-		y1y2_withcov = np.outer(ty1, ty2)
+		else: var_t2=0		
 		pcgc_coeff12 = np.sqrt(pcgc_coeff1 * pcgc_coeff2)
-		Q12 = compute_Q12(phe1, args.prev1, cov1, phe2, args.prev2, cov2)
-		
-		
-		
-	#remove diagonal entries of G1, G2 and G12
-	np.fill_diagonal(G1, 0)
-	if (bed2 is not None):
-		np.fill_diagonal(G2, 0)
-		G12[is_same]=0		
 		
 		
 	#compute z-scores 
@@ -492,8 +462,6 @@ if __name__ == '__main__':
 	if (args.z1_cov_out is not None):   write_sumstats(z1_withcov, len(phe1), bed1.sid, args.z1_cov_out)
 	if (args.z2_nocov_out is not None): write_sumstats(z2_nocov, len(phe2), bed2.sid, args.z2_nocov_out)
 	if (args.z2_cov_out is not None):   write_sumstats(z2_withcov, len(phe2), bed2.sid, args.z2_cov_out)
-	
-	#write Gty files
 	
 	#write Gty files
 	if (args.Gty1_nocov_out is not None):
@@ -520,19 +488,61 @@ if __name__ == '__main__':
 		df['Gty2'] = Gty2
 		df.to_csv(args.Gty2_cov_out, sep='\t', index=False, float_format='%0.6e', header=None)
 
-	
-	#Compute PCGC estimates, ignore covariates
-	sig2g_1_nocov = np.sum(y1y1_nocov*G1) / np.sum(G1**2) / pcgc_coeff1	
-	if (bed2 is not None):
-		sig2g_2_nocov = np.sum(y2y2_nocov*G2) / np.sum(G2**2) / pcgc_coeff2
-		rho_nocov = np.sum(y1y2_nocov*G12) / np.sum(G12**2) / pcgc_coeff12
+	if (args.sumstats_only > 0):
+		print_sumstats(cov1, u1_0, u1_1, var_t1, cov2, u2_0, u2_1, var_t2, sum_s1, sum_s1_sqr, sum_s2, sum_s2_sqr)
+		sys.exit(0)
 		
+
+	#find overlapping individuals
+	if (bed2 is not None):
+		print 'marking correlations between overlapping individuals...'
+		is_same = np.zeros((X1.shape[0], X2.shape[0]), dtype=np.bool)
+		is_same1 = np.zeros(X1.shape[0], dtype=np.bool)
+		is_same2 = np.zeros(X2.shape[0], dtype=np.bool)
+		num_overlap=0
+		for i1, ind1 in enumerate(bed1.iid[:,1]):
+			for i2, ind2 in enumerate(bed2.iid[:,1]):
+				if (ind1 == ind2):
+					is_same[i1,i2] = True
+					is_same1[i1] = True
+					is_same2[i2] = True
+					num_overlap+=1
+		
+		print 'found %d overlapping individuals'%(num_overlap)		
+		G12_issame = np.mean(X1[is_same1] * X2[is_same2], axis=1)		
+	
+
+	#Compute PCGC estimates, ignore covariates
+	#sig2g_1_nocov_old = np.sum(np.outer(y1_norm, y1_norm) * G1) / np.sum(G1**2) / pcgc_coeff1		
+	sig2g1_numer = z1_nocov.dot(z1_nocov) * len(phe1) / float(X1.shape[1]) - G1_diag.dot(y1_norm**2)
+	sig2g1_denom = pcgc_denom_lowmem_nocov(X1,X1, window_size=args.mem_size) 
+	sig2g_1_nocov = sig2g1_numer / sig2g1_denom / pcgc_coeff1
+	
+	if (bed2 is not None):
+		#sig2g_2_nocov_old = np.sum(np.outer(y2_norm, y2_norm) * G2) / np.sum(G2**2) / pcgc_coeff2
+		sig2g2_numer = z2_nocov.dot(z2_nocov) * len(phe2) / float(X2.shape[1]) - G2_diag.dot(y2_norm**2)
+		sig2g2_denom = pcgc_denom_lowmem_nocov(X2,X2, window_size=args.mem_size) 
+		sig2g_2_nocov = sig2g2_numer / sig2g2_denom / pcgc_coeff2
+		
+		#rho_nocov_old = np.sum(np.outer(y1_norm, y2_norm) * G12) / np.sum(G12**2) / pcgc_coeff12
+		rho_numer = z1_nocov.dot(z2_nocov) * np.sqrt(len(phe1) * len(phe2)) / float(X2.shape[1]) - np.sum(G12_issame * y1_norm[is_same1] * y2_norm[is_same2])
+		rho_denom = pcgc_denom_lowmem_nocov(X1, X2, is_same=is_same, window_size=args.mem_size)
+		rho_nocov = rho_numer / rho_denom / pcgc_coeff12
+		
+	
+	#perform jackknife computations
 	if (args.jackknife > 0):
 		print 'Computing jackknife standard errors with omitted covariates...'
+		t0 = time.time()
 		if (bed2 is None):
-			sig2g1_se_nocov = jackknife_pcgc_corr(X1, G1, y1_norm, z1_nocov, num_blocks=args.n_blocks, pcgc_coeff1=pcgc_coeff1)
+			sig2g1_se_nocov = pcgc_jackknife_sig2g(X1, y1_norm, sig2g1_numer, sig2g1_denom, pcgc_coeff1, window_size=args.mem_size)
 		else:
-			sig2g1_se_nocov, sig2g2_se_nocov, rho_se_nocov, corr_se_nocov = jackknife_pcgc_corr(X1, G1, y1_norm, z1_nocov, X2=X2, G2=G2, y2=y2_norm, z2=z2_nocov, G12=G12, zero_mask=is_same, num_blocks=args.n_blocks, pcgc_coeff1=pcgc_coeff1, pcgc_coeff2=pcgc_coeff2)
+			sig2g1_se_nocov, sig2g2_se_nocov, rho_se_nocov, corr_se_nocov = pcgc_jackknife_corr(X1, X2, y1_norm, y2_norm,
+				sig2g1_numer, sig2g1_denom, sig2g2_numer, sig2g2_denom, rho_numer, rho_denom,
+				pcgc_coeff1, pcgc_coeff2, pcgc_coeff12, 				
+				is_same=is_same, window_size=args.mem_size)
+		print 'done in %0.2f seconds'%(time.time() - t0)
+	
 	
 	print
 	print 'Results when excluding covariates'
@@ -554,6 +564,10 @@ if __name__ == '__main__':
 		if (args.num_perms > 0):
 			print 'Performing covariate-less permutation testing with %d permutations...'%(args.num_perms)
 			t0 = time.time()
+			y1y2_nocov = np.outer(y1_norm, y2_norm)
+			print 'computing kinship matrix between studies 1 and 2 for permutation testing...'
+			G12 = X1.dot(X2.T) / X1.shape[1]
+			G12[is_same]=0			
 			rho_pvalue_nocov = permutation_test(G12, y1y2_nocov, is_same, num_perms=args.num_perms)
 			print 'done in %0.2f seconds'%(time.time()-t0)
 			print 'correlation p-value (excluding covariates): %0.5e'%(rho_pvalue_nocov)
@@ -566,27 +580,44 @@ if __name__ == '__main__':
 
 	if (cov1 is not None or cov2 is not None):
 	
+		qty1 = ty1 * (u1_0 + u1_1)
+		if (bed2 is not None): qty2 = ty2 * (u2_0 + u2_1)		
+	
 		#Compute PCGC estimates, include covariates
-		sig2g_1_withcov = np.sum(y1y1_withcov*G1*Q1) / np.sum((G1*Q1)**2)
-		#print 'numer/denom for study 1:', np.sum(y1y1_withcov*G1*Q1), np.sum((G1*Q1)**2)		
+		#sig2g_1_withcov_old = np.sum(np.outer(ty1, ty1)*G1*Q1) / np.sum((G1*Q1)**2)		
+		numer_sig2g1 = z1_withcov.dot(z1_withcov) / X1.shape[1] - G1_diag.dot(qty1**2)
+		denom_sig2g1 = pcgc_denom_lowmem(X1, X1, u1_0, u1_1, u1_0, u1_1, window_size=args.mem_size)
+		sig2g_1_withcov = numer_sig2g1 / denom_sig2g1
 		h2_1_withcov = sig2g_1_withcov / (1 + var_t1)
 
 		if (bed2 is not None):
-			sig2g_2_withcov = np.sum(y2y2_withcov*G2*Q2) / np.sum((G2*Q2)**2)
-			#print 'numer/denom for study 2:', np.sum(y2y2_withcov*G2*Q2), np.sum((G2*Q2)**2)
+			#sig2g_2_withcov_old = np.sum(np.outer(ty2, ty2)*G2*Q2) / np.sum((G2*Q2)**2)
+			numer_sig2g2 = z2_withcov.dot(z2_withcov) / X2.shape[1] - G2_diag.dot(qty2**2)
+			denom_sig2g2 = pcgc_denom_lowmem(X2, X2, u2_0, u2_1, u2_0, u2_1, window_size=args.mem_size)			
+			sig2g_2_withcov = numer_sig2g2 / denom_sig2g2
 			h2_2_withcov = sig2g_2_withcov / (1 + var_t2)
-			rho_withcov = np.sum(y1y2_withcov*G12*Q12) / np.sum((G12*Q12)**2)
-			#print 'numer/denom for rho:', np.sum(y1y2_withcov*G12*Q12), np.sum((G12*Q12)**2)
+
+			#rho_withcov_old = np.sum(np.outer(ty1, ty2)*G12*Q12) / np.sum((G12*Q12)**2)
+			numer_rho = z1_withcov.dot(z2_withcov) / X2.shape[1] - np.sum(G12_issame * qty1[is_same1] * qty2[is_same2])
+			denom_rho = pcgc_denom_lowmem(X1, X2, u1_0, u1_1, u2_0, u2_1, is_same, window_size=args.mem_size)
+			rho_withcov = numer_rho / denom_rho
+			
 			
 		if (args.jackknife > 0):
 			print 'Computing jackknife standard errors with covariates...'
+			t0 = time.time()
 			if (bed2 is None):
-				sig2g1_se_withcov = jackknife_pcgc_corr(X1, G1, ty1, z1_withcov, Q1, u1_0, u1_1, num_blocks=args.n_blocks)
+				sig2g1_se_withcov = pcgc_jackknife_sig2g(X1, ty1, numer_sig2g1, denom_sig2g1, u0=u1_0, u1=u1_1, window_size=args.mem_size)
 			else:
-				sig2g1_se_withcov, sig2g2_se_withcov, rho_se_withcov, corr_se_withcov = jackknife_pcgc_corr(X1, G1, ty1, z1_withcov, Q1, u1_0, u1_1, X2, G2, ty2, z2_withcov, Q2, u2_0, u2_1, G12, Q12, zero_mask=is_same, num_blocks=args.n_blocks)
+				sig2g1_se_withcov, sig2g2_se_withcov, rho_se_withcov, corr_se_withcov = pcgc_jackknife_corr(X1, X2, ty1, ty2,
+					numer_sig2g1, denom_sig2g1, numer_sig2g2, denom_sig2g2, numer_rho, denom_rho,
+					u1_0=u1_0, u1_1=u1_1, u2_0=u2_0, u2_1=u2_1,
+					is_same=is_same, window_size=args.mem_size)
+			print 'done in %0.2f seconds'%(time.time()-t0)
 			
 			
-
+			
+		print
 		print 'Results when including covariates'
 		print '---------------------------------'
 		if (args.jackknife==0):
@@ -600,7 +631,7 @@ if __name__ == '__main__':
 				print 'genetic covariance: %0.4f'%(rho_withcov)
 				print 'genetic correlation: %0.4f'%(rho_withcov / np.sqrt(sig2g_1_withcov * sig2g_2_withcov))
 			else:
-				print 'study 2 h2: %0.4f (%0.4f)  (genetic variance: %0.4f (%0.4f))'%(h2_2_withcov, sig2g2_se_withcov/(1+var_t2),  sig2g_2_withcov, sig2g1_se_withcov)
+				print 'study 2 h2: %0.4f (%0.4f)  (genetic variance: %0.4f (%0.4f))'%(h2_2_withcov, sig2g2_se_withcov/(1+var_t2),  sig2g_2_withcov, sig2g2_se_withcov)
 				print 'genetic covariance: %0.4f (%0.4f)'%(rho_withcov, rho_se_withcov)
 				print 'genetic correlation: %0.4f (%0.4f)'%(rho_withcov / np.sqrt(sig2g_1_withcov * sig2g_2_withcov), corr_se_withcov)
 
@@ -608,6 +639,8 @@ if __name__ == '__main__':
 				if (args.num_perms > 0):
 					print 'Performing covariate-aware permutation testing with %d permutations...'%(args.num_perms)
 					t0 = time.time()
+					Q12 = compute_Q12(phe1, args.prev1, cov1, phe2, args.prev2, cov2)
+					y1y2_withcov = np.outer(ty1, ty2)
 					rho_pvalue_cov = permutation_test(G12*Q12, y1y2_withcov, is_same, num_perms=args.num_perms)
 					print 'done in %0.2f seconds'%(time.time()-t0)
 					print 'correlation p-value (including covariates): %0.5e'%(rho_pvalue_cov)
@@ -618,30 +651,4 @@ if __name__ == '__main__':
 			
 				
 	
-	print
-	print
-	print 'summary statistics for subsequent estimation:'
-	print '-----------------------------------'
-		
-	if (args.covar1 is not None):
-		print 'mean Q for study 1 (mean_Q1): %0.4f'%(np.mean(np.diag(Q1)))
-		print 'liability variance explained by covariates (var_t1): %0.4f'%(var_t1)
-
-	if (args.covar2 is not None):
-		print 'mean Q for study 2 (mean_Q2): %0.4f'%(np.mean(np.diag(Q2)))
-		print 'liability variance explained by covariates (var_t2): %0.4f'%(var_t2)
-		
-		
-	if (args.numPCs1 > 0):
-		print 'study 1 genotypes deflation factor (geno1_factor): %0.6f'%((sum_s1 - s1.sum()) / sum_s1)
-		print 'study 1 squared genotypes deflation factor  (sqr_geno1_factor): %0.6f'%((sum_s1_sqr - np.sum(s1**2)) / sum_s1_sqr)
-		
-	if (args.numPCs2 > 0):
-		print 'study 2 genotypes deflation factor (geno2_factor): %0.6f'%((sum_s2 - s2.sum()) / sum_s2)
-		print 'study 2 squared genotypes deflation factor  (sqr_geno2_factor): %0.6f'%((sum_s2_sqr - np.sum(s2**2)) / sum_s2_sqr)
-
-	
-		
-	print
-	print
-		
+	print_sumstats(cov1, u1_0, u1_1, var_t1, cov2, u2_0, u2_1, var_t2, sum_s1, sum_s1_sqr, sum_s2, sum_s2_sqr)
