@@ -85,11 +85,11 @@ These will specify how PCGC-s will normalize SNPs prior to computing kinship mat
 
 The `--norm` field currently accepts three options: "bed" will use in-sample normalization, "both" will use  in-sample estimates estimated from the two files jointly (while also accounting for the trait prevalence) and "maf" will use an external file with MAF estimates. **The recommended option is to use the maf option.** This requires also using  the `--maf` option to provide a csv file with two columns: A column called "snpid" with SNP names and a column called "maf" with MAF estimates. Please see the use example for one such file.
 
-####Jackknife options:
+####Summary statistics options:
 ```
---jackknife 0/1
+--sumstats_only 0/1
 ```
-This will toggle jackknife standard error estimates. By default jackknife is turned off because it slows the analysis down substantially. To compute jackknife estimates, please use `--jackknife 1`. Note that the summary-statistics based approximation in the file `pcgcs_summary.py` computes summary statistics very quickly, like LD score regression.
+If turned on, `PCGCs_direct.py` will only compute summary statistics without computing the actual heritability and genetic correlation estimates and their standard errors. This will be much faster than the full computation.
 
 ####Permutation testing:
 ```
