@@ -170,10 +170,10 @@ def pcgc_jackknife_corr(X1, X2, y1, y2,
 		
 def permutation_test(G, yyT, is_same, num_perms=10000):
 	
-	x = G.flatten()
-	y = yyT.flatten()
-	x = x[~(is_same.flatten())]	
-	y = y[~(is_same.flatten())]
+	x = G.reshape(-1)
+	y = yyT.reshape(-1)
+	x = x[~(is_same.reshape(-1))]
+	y = y[~(is_same.reshape(-1))]
 	
 	real_stat = x.dot(y)
 	null_stats = np.empty(num_perms)
