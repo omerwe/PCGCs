@@ -14,7 +14,8 @@ np.set_printoptions(precision=3, linewidth=200)
 
 
 def loadData(bfile, extractSim, phenoFile, missingPhenotype='-9', loadSNPs=False, keep=None, standardize=False, fileNum=None):
-	bed = Bed(bfile, count_A1=True)
+	try: bed = Bed(bfile, count_A1=True)
+	except: bed = Bed(bfile)
 	
 	if (extractSim is not None):
 		try:
