@@ -186,6 +186,33 @@ def permutation_test(G, yyT, is_same, num_perms=10000):
 	pvalue = np.mean(np.abs(null_stats) > np.abs(real_stat))
 	if (pvalue < 1.0/num_perms): pvalue = 1.0/num_perms
 	return pvalue
+	
+	
+def permutation_test2(X1, y1, X2, y2, G12_issame, is_same1, is_same2, num_perms=10000):
+
+	has_same = (G12_issame.shape[0] > 0)
+	c = float(X1.shape[1])
+	y1 = y1.copy()
+	y2 = y2.copy()
+	
+	null_stats = np.empty(num_perms)
+	z1 = y1.dot(X1)
+	z2 = y2.dot(X2)
+	real_stat = z1.dot(z2) / c
+	if has_same: real_stat -= G12_issame.dot(y1[is_same1] * y2[is_same2])
+	for i in xrange(num_perms):
+		if (i>0 and i % 100 == 0): print 'finished %d/%d permutations'%(i, num_perms)
+		np.random.shuffle(y1)
+		np.random.shuffle(y2)
+		z1 = y1.dot(X1)
+		z2 = y2.dot(X2)
+		null_stats[i] = z1.dot(z2) / c
+		if has_same: null_stats[i] -= G12_issame.dot(y1[is_same1] * y2[is_same2])
+		
+	pvalue = np.mean(np.abs(null_stats) > np.abs(real_stat))
+	if (pvalue < 1.0/num_perms): pvalue = 1.0/num_perms
+	return pvalue
+
 
 
 	
@@ -547,11 +574,12 @@ if __name__ == '__main__':
 			print
 			print 'Performing covariate-less permutation testing with %d permutations...'%(args.num_perms)
 			t0 = time.time()
-			y1y2_nocov = np.outer(y1_norm, y2_norm)
-			print 'computing kinship matrix between studies 1 and 2 for permutation testing...'
-			G12 = X1.dot(X2.T) / X1.shape[1]
-			G12[is_same]=0			
-			rho_pvalue_nocov = permutation_test(G12, y1y2_nocov, is_same, num_perms=args.num_perms)
+			#y1y2_nocov = np.outer(y1_norm, y2_norm)
+			#print 'computing kinship matrix between studies 1 and 2 for permutation testing...'
+			#G12 = X1.dot(X2.T) / X1.shape[1]
+			#G12[is_same]=0			
+			#rho_pvalue_nocov = permutation_test(G12, y1y2_nocov, is_same, num_perms=args.num_perms)
+			rho_pvalue_nocov = permutation_test2(X1, y1_norm, X2, y2_norm, G12_issame, is_same1, is_same2, num_perms=args.num_perms)
 			print 'done in %0.2f seconds'%(time.time()-t0)
 			print 'genetic correlation p-value (excluding covariates): %0.5e'%(rho_pvalue_nocov)
 			if (rho_pvalue_nocov < 100.0/args.num_perms):
@@ -623,8 +651,11 @@ if __name__ == '__main__':
 					print
 					print 'Performing covariate-aware permutation testing with %d permutations...'%(args.num_perms)
 					t0 = time.time()
-					y1y2_withcov = np.outer(ty1 * (u1_0 + u1_1), ty2 * (u2_0 + u2_1))
-					rho_pvalue_cov = permutation_test(G12, y1y2_withcov, is_same, num_perms=args.num_perms)
+					#y1y2_withcov = np.outer(ty1 * (u1_0 + u1_1), ty2 * (u2_0 + u2_1))
+					#G12 = X1.dot(X2.T) / X1.shape[1]
+					#G12[is_same]=0								
+					#rho_pvalue_cov = permutation_test(G12, y1y2_withcov, is_same, num_perms=args.num_perms)
+					rho_pvalue_cov = permutation_test2(X1, qty1, X2, qty2, G12_issame, is_same1, is_same2, num_perms=args.num_perms)
 					print 'done in %0.2f seconds'%(time.time()-t0)
 					print 'genetic correlation p-value (including covariates): %0.5e'%(rho_pvalue_cov)
 					if (rho_pvalue_cov < 100.0/args.num_perms):
