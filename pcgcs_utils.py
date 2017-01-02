@@ -125,12 +125,16 @@ def _fixup_pheno(pheno, bed=None, missingPhenotype='-9'):
 		
 #Mean-impute missing SNPs	
 def imputeSNPs(X):
+
+	#fast code, but not memory efficient
 	snpsMean = np.nanmean(X, axis=0)
-	isNan = np.isnan(X)
-	X[isNan]=0
-	X += isNan*snpsMean
-	#for i,m in enumerate(snpsMean):
-	#	X[isNan[:,i], i] = m
+	# isNan = np.isnan(X)
+	# X[isNan]=0
+	# X += isNan*snpsMean
+	
+	#slower code but more memory efficient
+	for i,m in enumerate(snpsMean):		
+		X[np.isnan(X[:,i]), i] = m
 		
 	return X
 	
@@ -360,7 +364,7 @@ def read_SNPs(bfile1, pheno1, prev1, covar1=None, keep1=None, bfile2=None, pheno
 		
 		#impute SNPs (separately for cases and controls)
 		print 'imputing SNPs...'
-		X1[phe1>phe1.mean(), :] = imputeSNPs(X1[phe1>phe1.mean(), :])
+		X1[phe1>phe1.mean(), :]  = imputeSNPs(X1[phe1>phe1.mean(), :])
 		X1[phe1<=phe1.mean(), :] = imputeSNPs(X1[phe1<=phe1.mean(), :])
 		X2[phe2>phe2.mean(), :]  = imputeSNPs(X2[phe2>phe2.mean(), :])
 		X2[phe2<=phe2.mean(), :] = imputeSNPs(X2[phe2<=phe2.mean(), :])
