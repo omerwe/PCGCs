@@ -403,11 +403,12 @@ if __name__ == '__main__':
 
 	#read bfile if provided
 	else:
-		bed, phe1, _, _, phe2, _ = pcgcs_utils.read_SNPs(bfile1=args.bfile, pheno1=args.pheno1, prev1=args.prev1, keep1=args.keep, bfile2=args.bfile, pheno2=args.pheno2, prev2=args.prev2, keep2=args.keep, extract=set(snp_names), missingPhenotype=args.missingPhenotype, chr=args.chr, norm=args.norm, maf=args.maf, center=False)
+		bed_val, bed, phe1, _, _, _, phe2, _ = pcgcs_utils.read_SNPs(bfile1=args.bfile, pheno1=args.pheno1, prev1=args.prev1, keep1=args.keep, bfile2=args.bfile, pheno2=args.pheno2, prev2=args.prev2, keep2=args.keep, extract=set(snp_names), missingPhenotype=args.missingPhenotype, chr=args.chr, norm=args.norm, maf=args.maf, center=False)
 		assert len(bed.sid) == len(snp_names), 'bfile has less SNPs than there are z-scores'
 		assert len(phe1)==len(phe2), 'phenotype files have a different number of individuals'
 		print 'found %d overlapping individuals in plink and phenotype files'%(len(phe1))
-		G_overlap = np.sum(bed.val**2, axis=1) / bed.val.shape[1]
+		#G_overlap = np.sum(bed_val**2, axis=1) / bed_val.shape[1]
+		G_overlap = np.einsum('ij,ij->i', bed_val, bed_val) / float(bed_val.shape[1])
 		y1_norm_overlap = ((phe1>phe1.mean()) - args.P1) / np.sqrt(args.P1 * (1-args.P1))
 		y2_norm_overlap = ((phe2>phe2.mean()) - args.P2) / np.sqrt(args.P2 * (1-args.P2))
 		

@@ -17,6 +17,7 @@ import itertools
 np.set_printoptions(precision=4, linewidth=200)
 from sklearn.linear_model import LinearRegression, LogisticRegression
 import pcgcs_utils
+from pcgcs_utils import print_memory_usage
 
 
 # def print_memory():
@@ -219,6 +220,9 @@ def permutation_test2(X1, y1, X2, y2, G12_issame, is_same1, is_same2, num_perms=
 #compute the PCGC denominator with limited memory, by only storing matrices of size (window_size x sample_size)
 def pcgc_denom_lowmem(X1, X2, u1_0, u1_1, u2_0, u2_1, is_same=None, window_size=1000):
 
+
+	print_memory_usage(7)
+
 	denom=0
 	if (window_size is None or window_size<0): window_size = X1.shape[0]
 	for i in xrange(0, X1.shape[0], window_size):
@@ -244,6 +248,8 @@ def pcgc_denom_lowmem(X1, X2, u1_0, u1_1, u2_0, u2_1, is_same=None, window_size=
 	
 #compute the PCGC denominator with limited memory, by only storing matrices of size (window_size x sample_size), without covariates
 def pcgc_denom_lowmem_nocov(X1, X2, is_same=None, window_size=1000):
+
+	print_memory_usage(6)
 
 	denom=0
 	if (window_size is None or window_size<0): window_size = X1.shape[0]
@@ -414,13 +420,13 @@ if __name__ == '__main__':
 	
 	
 	#read and preprocess the data
-	bed1, phe1, cov1, bed2, phe2, cov2 = pcgcs_utils.read_SNPs(bfile1=args.bfile1, pheno1=args.pheno1, prev1=args.prev1, covar1=args.covar1, keep1=args.keep1, bfile2=args.bfile2, pheno2=args.pheno2, prev2=args.prev2, covar2=args.covar2, keep2=args.keep2, extract=args.extract, missingPhenotype=args.missingPhenotype, chr=args.chr, norm=args.norm, maf=args.maf, center=args.center>0)
+	X1, bed1, phe1, cov1, X2, bed2, phe2, cov2 = pcgcs_utils.read_SNPs(bfile1=args.bfile1, pheno1=args.pheno1, prev1=args.prev1, covar1=args.covar1, keep1=args.keep1, bfile2=args.bfile2, pheno2=args.pheno2, prev2=args.prev2, covar2=args.covar2, keep2=args.keep2, extract=args.extract, missingPhenotype=args.missingPhenotype, chr=args.chr, norm=args.norm, maf=args.maf, center=args.center>0)
 	
 	#regress out PCs
 	if (args.numPCs1 == 0): sum_s1, sum_s1_sqr = None, None
 	else:
 		print 'Regressing top %d PCs out of bfile 1'%(args.numPCs1)
-		bed1.val, U1, s1, sum_s1, sum_s1_sqr = pcgcs_utils.regress_PCs(bed1.val, args.numPCs1)
+		X1, U1, s1, sum_s1, sum_s1_sqr = pcgcs_utils.regress_PCs(X1, args.numPCs1)
 		print 'done'
 		if (cov1 is None): cov1 = U1
 		else: cov1 = np.concatenate((cov1, U1), axis=1)
@@ -428,23 +434,25 @@ if __name__ == '__main__':
 	if (args.numPCs2 == 0): sum_s2, sum_s2_sqr = None, None
 	else:
 		print 'Regressing top %d PCs out of bfile 2'%(args.numPCs2)
-		bed2.val, U2, s2, sum_s2, sum_s2_sqr = pcgcs_utils.regress_PCs(bed2.val, args.numPCs2)
+		X2, U2, s2, sum_s2, sum_s2_sqr = pcgcs_utils.regress_PCs(X2, args.numPCs2)
 		print 'done'
 		if (cov2 is None): cov2 = U2
 		else: cov2 = np.concatenate((cov2, U2), axis=1)
 	
 	
 	#print plink file sizes
-	X1 = bed1.val
+	print_memory_usage(3.1)
 	print 'bfile1: %d cases, %d controls, %d SNPs'%(np.sum(phe1>phe1.mean()), np.sum(phe1<=phe1.mean()), bed1.sid.shape[0])
-	if (args.sumstats_only==0 or args.Gty1_nocov_out is not None or args.Gty1_cov_out is not None): G1_diag = np.mean(X1**2, axis=1)
+	print_memory_usage(3.2)
+	if (args.sumstats_only==0 or args.Gty1_nocov_out is not None or args.Gty1_cov_out is not None): G1_diag = np.einsum('ij,ij->i', X1,X1) / float(X1.shape[1])
+	print_memory_usage(3.3)
 	
 	
 	if (bed2 is not None):
-		X2 = bed2.val
-		if (args.sumstats_only==0 or args.Gty2_nocov_out is not None or args.Gty2_cov_out is not None): G2_diag = np.mean(X2**2, axis=1)		
+		if (args.sumstats_only==0 or args.Gty2_nocov_out is not None or args.Gty2_cov_out is not None): G2_diag = np.einsum('ij,ij->i', X2,X2) / float(X2.shape[1])
 		print 'bfile2: %d cases, %d controls, %d SNPs'%(np.sum(phe2>phe2.mean()), np.sum(phe2<=phe2.mean()), bed2.sid.shape[0])		
 
+	print_memory_usage(4)
 		
 	#PCGC initial computations
 	y1_norm, tau_i_1, pcgc_coeff1, ty1, u1_0, u1_1 = prepare_PCGC(phe1, args.prev1, cov1)
@@ -471,6 +479,9 @@ if __name__ == '__main__':
 	if (args.z1_cov_out is not None):   write_sumstats(z1_withcov, len(phe1), bed1.sid, args.z1_cov_out)
 	if (args.z2_nocov_out is not None): write_sumstats(z2_nocov, len(phe2), bed2.sid, args.z2_nocov_out)
 	if (args.z2_cov_out is not None):   write_sumstats(z2_withcov, len(phe2), bed2.sid, args.z2_cov_out)
+	
+	
+	print_memory_usage(5)
 	
 	#write Gty files
 	if (args.Gty1_nocov_out is not None):
@@ -518,13 +529,17 @@ if __name__ == '__main__':
 					num_overlap+=1
 		
 		print 'found %d overlapping individuals'%(num_overlap)		
-		G12_issame = np.mean(X1[is_same1] * X2[is_same2], axis=1)		
+		#G12_issame = np.mean(X1[is_same1] * X2[is_same2], axis=1)		
+		G12_issame = np.einsum('ij,ij->i', X1[is_same1], X2[is_same2]) / float(X1.shape[1])
 	
 
 	#Compute PCGC estimates, ignore covariates
 	#sig2g_1_nocov_old = np.sum(np.outer(y1_norm, y1_norm) * G1) / np.sum(G1**2) / pcgc_coeff1		
 	sig2g1_numer = z1_nocov.dot(z1_nocov) * len(phe1) / float(X1.shape[1]) - G1_diag.dot(y1_norm**2)
+	print 'computing PCGC denominator without covariates...'
+	t0 = time.time()
 	sig2g1_denom = pcgc_denom_lowmem_nocov(X1,X1, window_size=args.mem_size) 
+	print 'done in %0.2f seconds'%(time.time() - t0)
 	sig2g_1_nocov = sig2g1_numer / sig2g1_denom / pcgc_coeff1
 	
 	if (bed2 is not None):

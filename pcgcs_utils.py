@@ -10,6 +10,22 @@ from pysnptools.snpreader.bed import Bed
 import pysnptools.util as pstutil
 import pysnptools.util.pheno as phenoUtils
 np.set_printoptions(precision=3, linewidth=200)
+import resource
+import copy
+
+
+def memory_usage_resource():
+	rusage_denom = 1024.
+	if sys.platform == 'darwin':
+		# ... it seems that in OSX the output is different units ...
+		rusage_denom = rusage_denom * rusage_denom
+	mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / rusage_denom
+	return mem
+	
+def print_memory_usage(message=None):
+	return
+	if (message is not None): print message,
+	print 'memory: %0.5e'%(memory_usage_resource())
 
 
 
@@ -111,7 +127,7 @@ def _fixup_pheno(pheno, bed=None, missingPhenotype='-9'):
 def imputeSNPs(X):
 	snpsMean = np.nanmean(X, axis=0)
 	isNan = np.isnan(X)
-	X[np.isnan(X)]=0
+	X[isNan]=0
 	X += isNan*snpsMean
 	#for i,m in enumerate(snpsMean):
 	#	X[isNan[:,i], i] = m
@@ -120,7 +136,16 @@ def imputeSNPs(X):
 	
 
 	
-
+def read_bed_lowmem(bed):
+	X = np.empty((bed.iid.shape[0], bed.sid.shape[0]), dtype=np.float32)
+	batch_size = 1000
+	
+	for i in xrange(0, bed.iid.shape[0], batch_size):
+		bed_copy = copy.deepcopy(bed)
+		bed_copy = bed_copy[i:i+batch_size, :]
+		bed_copy=bed_copy.read()
+		X[i:i+batch_size, :] = bed_copy.val
+	return X
 	
 	
 #Regress top PCs out of the genotypes matrix
@@ -139,7 +164,7 @@ def regress_PCs(snps, numPCs):
 	
 
 #Read and preprocess the data
-def read_SNPs(bfile1, pheno1, prev1, covar1=None, keep1=None, bfile2=None, pheno2=None, prev2=None, covar2=None, keep2=None, extract=None, missingPhenotype='-9', chr=None, norm=None, maf=None, center=False):
+def read_SNPs(bfile1, pheno1, prev1, covar1=None, keep1=None, bfile2=None, pheno2=None, prev2=None, covar2=None, keep2=None, extract=None, missingPhenotype='-9', chr=None, norm=None, maf=None, center=False, lowmem=True):
 
 	print	
 	print
@@ -150,7 +175,7 @@ def read_SNPs(bfile1, pheno1, prev1, covar1=None, keep1=None, bfile2=None, pheno
 	bed1, phe1 = loadData(bfile1, extract, pheno1, missingPhenotype, loadSNPs=False, standardize=False, keep=keep1, fileNum=1)	
 	assert len(np.unique(phe1)==2), 'phenotypes file 1 is not case-control data'
 	if (bfile2 is None):
-		bed2, phe2 = None, None		
+		bed2, phe2, X2 = None, None, None
 	else:
 		bed2, phe2 = loadData(bfile2, extract, pheno2, missingPhenotype, loadSNPs=False, standardize=False, keep=keep2, fileNum=2)	
 		assert len(np.unique(phe2)==2), 'phenotypes file 2 is not case-control data'
@@ -180,10 +205,15 @@ def read_SNPs(bfile1, pheno1, prev1, covar1=None, keep1=None, bfile2=None, pheno
 			bed2 = bed2[:, bed2.pos[:,0]==chr]
 			print 'Remaining number of SNPs in bfile 2:', bed2.sid.shape[0]
 
-	
-	bed1=bed1.read()
+	if lowmem: X1 = read_bed_lowmem(bed1)
+	else:
+		bed1=bed1.read()
+		X1 = bed1.val
 	if (bfile2 is not None):
-		bed2=bed2.read()
+		if lowmem: X2 = read_bed_lowmem(bed2)
+		else:
+			bed2=bed2.read()
+			X2 = bed2.val
 		
 		#align different strands...		
 		t0 = time.time()
@@ -191,8 +221,8 @@ def read_SNPs(bfile1, pheno1, prev1, covar1=None, keep1=None, bfile2=None, pheno
 		for i1, ind1 in enumerate(bed1.iid[:,1]):
 			for i2, ind2 in enumerate(bed2.iid[:,1]):
 				if (ind1 != ind2): continue					
-				snps1 = bed1.val[i1]
-				snps2 = bed2.val[i2]
+				snps1 = X1[i1]
+				snps2 = X2[i2]
 				diff_spots = ((~np.isnan(snps1)) & (~np.isnan(snps2)) & (snps1 != snps2))
 				num_diff[diff_spots] += 1
 		
@@ -206,8 +236,8 @@ def read_SNPs(bfile1, pheno1, prev1, covar1=None, keep1=None, bfile2=None, pheno
 			for i1, ind1 in enumerate(bed1.iid[:,1]):
 				for i2, ind2 in enumerate(bed2.iid[:,1]):
 					if (ind1 != ind2): continue
-					snps1 = bed1.val[i1, is_diff_strand]
-					snps2 = bed2.val[i2, is_diff_strand]
+					snps1 = X1[i1, is_diff_strand]
+					snps2 = X2[i2, is_diff_strand]
 					
 					keep = (~np.isnan(snps1) & (~np.isnan(snps2)) & (snps1!=1) & (snps2!=1))				
 					if (np.sum(keep) == 0): continue
@@ -215,11 +245,12 @@ def read_SNPs(bfile1, pheno1, prev1, covar1=None, keep1=None, bfile2=None, pheno
 					snps2 = snps2[keep]
 					assert np.all(snps1 != snps2), 'the two files have non-consistent strand information. Please double check your input for errors'
 					
-			bed2.val[:, is_diff_strand] *= (-1)
-			bed2.val[:, is_diff_strand] += 2
+			X2[:, is_diff_strand] *= (-1)
+			X2[:, is_diff_strand] += 2
 			
 			print 'strand alignment done in %0.2f seconds'%(time.time() - t0)
 
+	print_memory_usage(1)
 		
 	#load covariates
 	if (covar1 is None): cov1 = None
@@ -249,16 +280,18 @@ def read_SNPs(bfile1, pheno1, prev1, covar1=None, keep1=None, bfile2=None, pheno
 		bed1=bed1.standardize()
 		if (bfile2 is not None): bed2=bed2.standardize()
 		
+		print_memory_usage(2)
+		
 	elif (norm == 'maf'):
 		assert maf is not None, 'maf file must be specified for "--norm maf"'
 	
 		#impute SNPs (separately for cases and controls)
 		print 'imputing SNPs...'
-		bed1.val[phe1>phe1.mean(), :] = imputeSNPs(bed1.val[phe1>phe1.mean(), :])
-		bed1.val[phe1<=phe1.mean(), :] = imputeSNPs(bed1.val[phe1<=phe1.mean(), :])
+		X1[phe1>phe1.mean(), :] = imputeSNPs(X1[phe1>phe1.mean(), :])
+		X1[phe1<=phe1.mean(), :] = imputeSNPs(X1[phe1<=phe1.mean(), :])
 		if (bfile2 is not None):
-			bed2.val[phe2>phe2.mean(), :]  = imputeSNPs(bed2.val[phe2>phe2.mean(), :])
-			bed2.val[phe2<=phe2.mean(), :] = imputeSNPs(bed2.val[phe2<=phe2.mean(), :])	
+			X2[phe2>phe2.mean(), :]  = imputeSNPs(X2[phe2>phe2.mean(), :])
+			X2[phe2<=phe2.mean(), :] = imputeSNPs(X2[phe2<=phe2.mean(), :])	
 	
 		#read MAFs
 		df = pd.read_csv(maf, delimiter='\s+')		
@@ -289,14 +322,23 @@ def read_SNPs(bfile1, pheno1, prev1, covar1=None, keep1=None, bfile2=None, pheno
 			if (sid in snp_to_maf): mafs[sid_i] = snp_to_maf[sid]
 		if (np.any(np.isnan(mafs))):
 			print 'removing %d SNPs with no MAF information'%(np.sum(np.isnan(mafs)))
-		bed1 = bed1[:, ~np.isnan(mafs)].read()
-		if (bfile2 is not None): bed2 = bed2[:, ~np.isnan(mafs)].read()
+		bed1 = bed1[:, ~np.isnan(mafs)]
+		if lowmem: X1 = read_bed_lowmem(bed1)
+		else:
+			bed1=bed1.read()
+			X1 = bed1.val
+		if (bfile2 is not None):
+			bed2 = bed2[:, ~np.isnan(mafs)]
+			if lowmem: X2 = read_bed_lowmem(bed2)
+			else:
+				bed2=bed2.read()
+				X2 = bed2.val
 		mafs = mafs[~np.isnan(mafs)]
-		bed1.val -= 2*mafs
-		bed1.val /= np.sqrt(2*mafs*(1-mafs))
+		X1 -= 2*mafs
+		X1 /= np.sqrt(2*mafs*(1-mafs))
 		if (bfile2 is not None):			
-			bed2.val -= 2*mafs
-			bed2.val /= np.sqrt(2*mafs*(1-mafs))
+			X2 -= 2*mafs
+			X2 /= np.sqrt(2*mafs*(1-mafs))
 		
 		
 	elif (norm=='both'):
@@ -304,12 +346,12 @@ def read_SNPs(bfile1, pheno1, prev1, covar1=None, keep1=None, bfile2=None, pheno
 		t0 = time.time()
 		#estimate MAFs (before imputation)
 		print 'estimating in-sample MAFs...'
-		maf1_controls = np.nanmean(bed1.val[phe1<=phe1.mean()], axis=0)
-		maf1_cases = np.nanmean(bed1.val[phe1>phe1.mean()], axis=0)
+		maf1_controls = np.nanmean(X1[phe1<=phe1.mean()], axis=0)
+		maf1_cases = np.nanmean(X1[phe1>phe1.mean()], axis=0)
 		maf1 = prev1*maf1_cases + (1-prev1)*maf1_controls
 		
-		maf2_controls = np.nanmean(bed2.val[phe2<=phe2.mean()], axis=0)
-		maf2_cases = np.nanmean(bed2.val[phe2>phe2.mean()], axis=0)
+		maf2_controls = np.nanmean(X2[phe2<=phe2.mean()], axis=0)
+		maf2_cases = np.nanmean(X2[phe2>phe2.mean()], axis=0)
 		maf2 = prev2*maf2_cases + (1-prev2)*maf2_controls
 		mafs = (bed1.iid.shape[0]*maf1 + bed2.iid.shape[0]*maf2) / (bed1.iid.shape[0] + bed2.iid.shape[0])
 		mafs /= 2.0
@@ -318,17 +360,17 @@ def read_SNPs(bfile1, pheno1, prev1, covar1=None, keep1=None, bfile2=None, pheno
 		
 		#impute SNPs (separately for cases and controls)
 		print 'imputing SNPs...'
-		bed1.val[phe1>phe1.mean(), :] = imputeSNPs(bed1.val[phe1>phe1.mean(), :])
-		bed1.val[phe1<=phe1.mean(), :] = imputeSNPs(bed1.val[phe1<=phe1.mean(), :])
-		bed2.val[phe2>phe2.mean(), :]  = imputeSNPs(bed2.val[phe2>phe2.mean(), :])
-		bed2.val[phe2<=phe2.mean(), :] = imputeSNPs(bed2.val[phe2<=phe2.mean(), :])
+		X1[phe1>phe1.mean(), :] = imputeSNPs(X1[phe1>phe1.mean(), :])
+		X1[phe1<=phe1.mean(), :] = imputeSNPs(X1[phe1<=phe1.mean(), :])
+		X2[phe2>phe2.mean(), :]  = imputeSNPs(X2[phe2>phe2.mean(), :])
+		X2[phe2<=phe2.mean(), :] = imputeSNPs(X2[phe2<=phe2.mean(), :])
 		
 		#normalize SNPs
 		print 'normalizing SNPs with "both" method...'
-		bed1.val -= 2*mafs
-		bed1.val /= np.sqrt(2*mafs*(1-mafs))
-		bed2.val -= 2*mafs
-		bed2.val /= np.sqrt(2*mafs*(1-mafs))
+		X1 -= 2*mafs
+		X1 /= np.sqrt(2*mafs*(1-mafs))
+		X2 -= 2*mafs
+		X2 /= np.sqrt(2*mafs*(1-mafs))
 		
 		print 'total normalization time: %0.2f'%(time.time() - t0)
 		
@@ -342,12 +384,14 @@ def read_SNPs(bfile1, pheno1, prev1, covar1=None, keep1=None, bfile2=None, pheno
 	#center SNPs
 	if center:
 		print 'centering SNPs...'
-		bed1.val -= bed1.val.mean(axis=0)
-		if (bfile2 is not None): bed2.val -= bed2.val.mean(axis=0)	
+		X1 -= X1.mean(axis=0)
+		if (bfile2 is not None): X2 -= X2.mean(axis=0)	
 		
 	
 	print 'done'
 	print '----------------------------------------'
 	print
 	
-	return bed1, phe1, cov1, bed2, phe2, cov2
+	print_memory_usage(3)
+	
+	return X1, bed1, phe1, cov1, X2, bed2, phe2, cov2
