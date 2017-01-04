@@ -169,24 +169,24 @@ def pcgc_jackknife_corr(X1, X2, y1, y2,
 	return np.sqrt(sig2g1_var), np.sqrt(sig2g2_var), np.sqrt(rho_var), np.sqrt(corr_var)
 		
 		
-def permutation_test(G, yyT, is_same, num_perms=10000):
+# # # def permutation_test(G, yyT, is_same, num_perms=10000):
 	
-	x = G.reshape(-1)
-	y = yyT.reshape(-1)
-	x = x[~(is_same.reshape(-1))]
-	y = y[~(is_same.reshape(-1))]
+	# # # x = G.reshape(-1)
+	# # # y = yyT.reshape(-1)
+	# # # x = x[~(is_same.reshape(-1))]
+	# # # y = y[~(is_same.reshape(-1))]
 	
-	real_stat = x.dot(y)
-	null_stats = np.empty(num_perms)
+	# # # real_stat = x.dot(y)
+	# # # null_stats = np.empty(num_perms)
 
-	for i in xrange(num_perms):
-		if (i>0 and i % 100 == 0): print 'finished %d/%d permutations'%(i, num_perms)
-		np.random.shuffle(y)
-		null_stats[i] = x.dot(y)
+	# # # for i in xrange(num_perms):
+		# # # if (i>0 and i % 100 == 0): print 'finished %d/%d permutations'%(i, num_perms)
+		# # # np.random.shuffle(y)
+		# # # null_stats[i] = x.dot(y)
 		
-	pvalue = np.mean(np.abs(null_stats) > np.abs(real_stat))
-	if (pvalue < 1.0/num_perms): pvalue = 1.0/num_perms
-	return pvalue
+	# # # pvalue = np.mean(np.abs(null_stats) > np.abs(real_stat))
+	# # # if (pvalue < 1.0/num_perms): pvalue = 1.0/num_perms
+	# # # return pvalue
 	
 	
 def permutation_test2(X1, y1, X2, y2, G12_issame, is_same1, is_same2, num_perms=10000):
@@ -214,6 +214,28 @@ def permutation_test2(X1, y1, X2, y2, G12_issame, is_same1, is_same2, num_perms=
 	if (pvalue < 1.0/num_perms): pvalue = 1.0/num_perms
 	return pvalue
 
+	
+	
+	
+def permutation_test_heritability(X, y, G_diag, num_perms=10000):
+
+	c = float(X.shape[1])
+	y = y.copy()
+	
+	null_stats = np.empty(num_perms)
+	z = y.dot(X)
+	real_stat = z.dot(z) / c
+	real_stat -= G_diag.dot(y**2)
+	for i in xrange(num_perms):
+		if (i>0 and i % 100 == 0): print 'finished %d/%d permutations'%(i, num_perms)
+		np.random.shuffle(y)
+		z = y.dot(X)
+		null_stats[i] = z.dot(z) / c
+		null_stats[i] -= G_diag.dot(y**2)
+		
+	pvalue = np.mean(np.abs(null_stats) > np.abs(real_stat))
+	if (pvalue < 1.0/num_perms): pvalue = 1.0/num_perms
+	return pvalue
 
 
 	
@@ -584,22 +606,38 @@ if __name__ == '__main__':
 		print 'genetic correlation: %0.4f'%(rho_nocov / np.sqrt(sig2g_1_nocov * sig2g_2_nocov)),
 		if (args.jackknife>0): print '(%0.4f)'%(corr_se_nocov),
 		print
+		
+	#permutation testing code
+	if (args.num_perms > 0):
+		print
+		print 'Performing covariate-less permutation testing for heritability of study 1 with %d permutations...'%(args.num_perms)
+		t0 = time.time()
+		rho_pvalue_nocov = permutation_test_heritability(X1, y1_norm, G1_diag, num_perms=args.num_perms)
+		print 'done in %0.2f seconds'%(time.time()-t0)
+		print 'study 1 h2 p-value (excluding covariates): %0.5e'%(rho_pvalue_nocov)
+		if (rho_pvalue_nocov < 100.0/args.num_perms):
+			print 'WARNING: p-value is close to the possible limit due to the number of permutations. Please increase the number of permutations to obtain a more accurate result'
+					
+	if (bed2 is not None and args.num_perms > 0):
+		print
+		print 'Performing covariate-less permutation testing for heritability of study 2 with %d permutations...'%(args.num_perms)
+		t0 = time.time()
+		rho_pvalue_nocov = permutation_test_heritability(X2, y2_norm, G2_diag, num_perms=args.num_perms)
+		print 'done in %0.2f seconds'%(time.time()-t0)
+		print 'study 2 h2 p-value (excluding covariates): %0.5e'%(rho_pvalue_nocov)
+		if (rho_pvalue_nocov < 100.0/args.num_perms):
+			print 'WARNING: p-value is close to the possible limit due to the number of permutations. Please increase the number of permutations to obtain a more accurate result'
+
+	
+		print
+		print 'Performing covariate-less permutation testing for genetic correlation with %d permutations...'%(args.num_perms)
+		t0 = time.time()
+		rho_pvalue_nocov = permutation_test2(X1, y1_norm, X2, y2_norm, G12_issame, is_same1, is_same2, num_perms=args.num_perms)
+		print 'done in %0.2f seconds'%(time.time()-t0)
+		print 'genetic correlation p-value (excluding covariates): %0.5e'%(rho_pvalue_nocov)
+		if (rho_pvalue_nocov < 100.0/args.num_perms):
+			print 'WARNING: p-value is close to the possible limit due to the number of permutations. Please increase the number of permutations to obtain a more accurate result'
 			
-		if (args.num_perms > 0):
-			print
-			print 'Performing covariate-less permutation testing with %d permutations...'%(args.num_perms)
-			t0 = time.time()
-			#y1y2_nocov = np.outer(y1_norm, y2_norm)
-			#print 'computing kinship matrix between studies 1 and 2 for permutation testing...'
-			#G12 = X1.dot(X2.T) / X1.shape[1]
-			#G12[is_same]=0			
-			#rho_pvalue_nocov = permutation_test(G12, y1y2_nocov, is_same, num_perms=args.num_perms)
-			rho_pvalue_nocov = permutation_test2(X1, y1_norm, X2, y2_norm, G12_issame, is_same1, is_same2, num_perms=args.num_perms)
-			print 'done in %0.2f seconds'%(time.time()-t0)
-			print 'genetic correlation p-value (excluding covariates): %0.5e'%(rho_pvalue_nocov)
-			if (rho_pvalue_nocov < 100.0/args.num_perms):
-				print 'WARNING: p-value is close to the possible limit due to the number of permutations. Please increase the number of permutations to obtain a more accurate result'
-				
 	print
 	print
 
@@ -660,23 +698,43 @@ if __name__ == '__main__':
 				print 'study 2 h2: %0.4f (%0.4f)  (genetic variance: %0.4f (%0.4f))'%(h2_2_withcov, sig2g2_se_withcov/(1+var_t2),  sig2g_2_withcov, sig2g2_se_withcov)
 				print 'genetic covariance: %0.4f (%0.4f)'%(rho_withcov, rho_se_withcov)
 				print 'genetic correlation: %0.4f (%0.4f)'%(rho_withcov / np.sqrt(sig2g_1_withcov * sig2g_2_withcov), corr_se_withcov)
-
-			if (args.covar2 is not None):
-				if (args.num_perms > 0):
-					print
-					print 'Performing covariate-aware permutation testing with %d permutations...'%(args.num_perms)
-					t0 = time.time()
-					#y1y2_withcov = np.outer(ty1 * (u1_0 + u1_1), ty2 * (u2_0 + u2_1))
-					#G12 = X1.dot(X2.T) / X1.shape[1]
-					#G12[is_same]=0								
-					#rho_pvalue_cov = permutation_test(G12, y1y2_withcov, is_same, num_perms=args.num_perms)
-					rho_pvalue_cov = permutation_test2(X1, qty1, X2, qty2, G12_issame, is_same1, is_same2, num_perms=args.num_perms)
-					print 'done in %0.2f seconds'%(time.time()-t0)
-					print 'genetic correlation p-value (including covariates): %0.5e'%(rho_pvalue_cov)
-					if (rho_pvalue_cov < 100.0/args.num_perms):
-						print 'WARNING: p-value is close to the possible limit due to the number of permutations. Please increase the number of permutations to obtain a more accurate result'
-					
-					
+				
+				
+				
+		#permutation testing code
+		if (args.num_perms > 0):
+			print
+			print 'Performing covariate-aware permutation testing for heritability of study 1 with %d permutations...'%(args.num_perms)
+			t0 = time.time()
+			rho_pvalue_cov = permutation_test_heritability(X1, qty1, G1_diag, num_perms=args.num_perms)
+			print 'done in %0.2f seconds'%(time.time()-t0)
+			print 'study 1 h2 p-value (including covariates): %0.5e'%(rho_pvalue_cov)
+			if (rho_pvalue_cov < 100.0/args.num_perms):
+				print 'WARNING: p-value is close to the possible limit due to the number of permutations. Please increase the number of permutations to obtain a more accurate result'
+						
+				
+		if (args.covar2 is not None and args.num_perms > 0):
+		
+			print
+			print 'Performing covariate-aware permutation testing for heritability of study 2 with %d permutations...'%(args.num_perms)
+			t0 = time.time()
+			rho_pvalue_cov = permutation_test_heritability(X2, qty2, G2_diag, num_perms=args.num_perms)
+			print 'done in %0.2f seconds'%(time.time()-t0)
+			print 'study 2 h2 p-value (including covariates): %0.5e'%(rho_pvalue_cov)
+			if (rho_pvalue_cov < 100.0/args.num_perms):
+				print 'WARNING: p-value is close to the possible limit due to the number of permutations. Please increase the number of permutations to obtain a more accurate result'
+								
+		
+			print
+			print 'Performing covariate-aware permutation testing for genetic correlation with %d permutations...'%(args.num_perms)
+			t0 = time.time()
+			rho_pvalue_cov = permutation_test2(X1, qty1, X2, qty2, G12_issame, is_same1, is_same2, num_perms=args.num_perms)
+			print 'done in %0.2f seconds'%(time.time()-t0)
+			print 'genetic correlation p-value (including covariates): %0.5e'%(rho_pvalue_cov)
+			if (rho_pvalue_cov < 100.0/args.num_perms):
+				print 'WARNING: p-value is close to the possible limit due to the number of permutations. Please increase the number of permutations to obtain a more accurate result'
+			
+				
 			
 				
 	

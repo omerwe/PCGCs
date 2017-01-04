@@ -281,8 +281,17 @@ def read_SNPs(bfile1, pheno1, prev1, covar1=None, keep1=None, bfile2=None, pheno
 	#standardize SNPs
 	if (norm=='bed' or norm is None):
 		print 'WARNING: normalizing SNPs using in-sample MAFs (highly unrecommended for case-control studies)'
-		bed1=bed1.standardize()
-		if (bfile2 is not None): bed2=bed2.standardize()
+		#bed1=bed1.standardize()
+		X1 -= np.nanmean(X1, axis=0)
+		X1_std = np.nanstd(X1, axis=0)
+		X1_std[X1_std==0] = 1
+		X1 /= X1_std
+		if (bfile2 is not None):
+			#bed2=bed2.standardize()
+			X2 -= np.nanmean(X2, axis=0)
+			X2_std = np.nanstd(X2, axis=0)
+			X2_std[X2_std==0] = 1
+			X2 /= X2_std	
 		
 		print_memory_usage(2)
 		
