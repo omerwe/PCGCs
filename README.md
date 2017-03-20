@@ -5,7 +5,7 @@ PCGC-s is a Python package for estimation of genetic heritability, covariance an
 The method can be seen as an adaptation of [LD score regression](http://www.nature.com/ng/journal/v47/n11/full/ng.3406.html) for case-control studies.
 
 <br><br>
-#Installation
+# Installation
 PCGC-s is designed to work in Python 2.7, and depends on the following freely available Python package:
 * [numpy](http://www.numpy.org/) and [scipy](http://www.scipy.org/)
 * [scikit-learn](http://scikit-learn.org/stable/)
@@ -25,7 +25,7 @@ The project can also be downloaded as a zip file from the Github website.
 
 
 <br><br>
-#Usage Overview
+# Usage Overview
 There are two ways to run PCGC-s. The first is the script `pcgcs_direct.py`, which works directly with
 [binary Plink files](http://pngu.mgh.harvard.edu/~purcell/plink/data.shtml#bed) and with [phenotype and covariate files written in Plink format](http://pngu.mgh.harvard.edu/~purcell/plink/data.shtml). 
 The second is the script `pcgcs_summary.py`, which works with summary statistics.
@@ -36,7 +36,7 @@ python pcgcs_direct.py --help
 python pcgcs_summary.py --help
 ```
 
-##TL;DR
+## TL;DR
 For an example, please go to the "example" directory and run the following two commands (using the anaconda version of python if available):
 ```
 python ../pcgcs_direct.py \
@@ -61,22 +61,22 @@ The second command will use summary statistics produced by the first command to 
 
 
 <br><br>
-#Detailed Instructions
+# Detailed Instructions
 
 <br><br>
-##Computing Heritability and Genetic Correlation Directly
+## Computing Heritability and Genetic Correlation Directly
 The file `pcgcs_direct.py` directly estimates heritability and genetic correlation.
 This file can accept either one or two plink files representing distinct genetic studies. If only one file is provided, `pcgcs_direct.py` will estimate heritability. If two files are provided, it will also estimate heritability for the second study and the genetic correlation between the studies. Standard errors are computed via a jackknife over individuals.
 The command-line arguments can be broken down into several categories, which we now describe:
 
-####Raw Data:
+#### Raw Data:
 ```
 --bfile1 <plink file> --pheno1 <phenotypes file> --covar1 <covariates file> --prev1 <trait 1 prevalence>
 ```
 These fields will specify a plink file with genetic data, a phenotypes file, a covariates file and the prevalence of trait 1, respectively. The phenotypes file must contain only two phenotype values (preferably 0/1 for controls/cases).
 The same fields may also be specified for a second study (using `--bfile2`, `--pheno2`, etc).
 
-####SNP normalization options:
+#### SNP normalization options:
 ```
 --norm <norm_option> --maf <maf file>
 ```
@@ -85,27 +85,27 @@ These will specify how PCGC-s will normalize SNPs prior to computing kinship mat
 
 The `--norm` field currently accepts three options: "bed" will use in-sample normalization, "both" will use  in-sample estimates estimated from the two files jointly (while also accounting for the trait prevalence) and "maf" will use an external file with MAF estimates. **The recommended option is to use the maf option.** This requires also using  the `--maf` option to provide a csv file with two columns: A column called "snpid" with SNP names and a column called "maf" with MAF estimates. Please see the use example for one such file.
 
-####Summary statistics options:
+#### Summary statistics options:
 ```
 --sumstats_only 0/1
 ```
 If turned on, `PCGCs_direct.py` will only compute summary statistics without computing the actual heritability and genetic correlation estimates and their standard errors. This will be much faster than the full computation.
 
 
-####Memory utilization options:
+#### Memory utilization options:
 ```
 --mem_size <# of individuals>
 ```
 `pcgcs_direct.py` avoids computing large kinship matrices to save memory. Instead, it computes intermediate kinship matrices of size `mem_size x n` (rather than full kinship matrices of size `n x n`). This is useful for very large studies, where the kinship matrix is very large. By default `mem size = 1000`. Using smaller values will require less memory but may increase the run-time. Note that `pcgcs_direct.py` stores the entire contents of the plink files in memory, which may themselves be very large.
 
 
-####Jackknife options:
+#### Jackknife options:
 ```
 --jackknife 0/1
 ```
 This will toggle jackknife-based standard error computations on or off. By default this is turned on. Turning this off will speed up the computations significatly, but standard errors will not be reported.
 
-####Permutation testing:
+#### Permutation testing:
 ```
 --num_perms <number of permutations>
 ```
@@ -113,18 +113,18 @@ This flag controls permutation testing to test the hypothesis that the true gene
 
 
 <br><br>
-##Creating Summary Statistics
+## Creating Summary Statistics
 The file `pcgcs_direct.py` can not only estimate heritability and genetic correlation, but can also create summary statistics that can be used to estimate these quantities without having access to genetic data. This is especially useful if two research groups wish to collaborate to estimate genetic correlation between traits, but cannot share genetic data with each other.
 The following categories of options are used to create summary statistic files:
 
-####Z-score output options:
+#### Z-score output options:
 ```
 --z1_nocov_out <file_name> --z1_cov_out <file_name>
 ```
 These options will tell PCGC-s to output z-score summary statistics, similarly to LD score regression. The first option ignores measured covariates, while the second option outputs a covariates-aware z-scores file. Both options can be be used simultaneously.
 Similar options exist also for study 2 (`--z2_nocov_out` and `--z2_cov_out`).
 
-####intercept output options:
+#### intercept output options:
 ```
 --Gty1_nocov_out <file name> --Gty1_cov_out <file name>
 ```
@@ -141,7 +141,7 @@ Similar options can be provided for study 2.
 
 
 <br><br>
-##Inclusion of Covariates
+## Inclusion of Covariates
 Genetic studies often include covariates that represent major risk factors, such as age and sex.
 Accounting for such covariates can improve estimation accuracy, while omitting such covariates can sometimes lead to biased estimates.
 PCGC-s makes a major distinction between analyses that omit covariates and those that include them.
@@ -157,12 +157,12 @@ Estimating heritability and genetic correlation with `pcgcs_summary.py` requires
 
 
 <br><br>
-##Computing Heritability and Genetic Correlation with Summary Statistics
+## Computing Heritability and Genetic Correlation with Summary Statistics
 
 As explained above, there is a major distinction between analyses that omit covariates and those that include them. `pcgcs_direct.py` can carry out both types of analyses. We first describe covariate-less analyses, and then proceed to describe covariate-aware analyses. We note that the PCGC-s paper describes a method to compute exact estimates (without approximation) by computing the covariance between every pair of variants in the study. However, this is a very computationally expensive operation and is currently not implemented in the software.
 
 
-####covariate-less analysis with summary statistics
+#### covariate-less analysis with summary statistics
 Heritability and genetic correlation estimation without covariates requires several pieces of information:
  1. z-score files. These are provided with the arguments `--z1_nocov` and `--z2_nocov`. Ideally these files should be created by `pcgcs_direct.py` using the flags `--z1_nocov_out`, `--z2_nocov_out`. Other software can also be used to create these files. In this case, it is highly recommended to first standardize the z-score files using the script `munge_sumstats.py` from the [ldsc package](https://github.com/bulik/ldsc). 
  If only `--z1_nocov` is provided, PCGC-s will estimate heritability. If `--z2_nocov` is also provided, PCGC-s will also estimate heritability for the second study and genetic correlation between the two studies.
@@ -177,7 +177,7 @@ Heritability and genetic correlation estimation without covariates requires seve
 	4. If none of these options is specified, PCGC-s will assume that there are no overlapping individuals.
 	
 <br><br>
-####covariate-aware analysis with summary statistics
+#### covariate-aware analysis with summary statistics
 Heritability and genetic correlation estimation with covariates requires several pieces of information:
  1. z-score files: These must be covariate-aware z-score files computed via `pcgcs_direct.py` with the flags `--z1_cov_out`, `--z2_cov_out`. **Other software cannot be used to create these files**. The files are provided to `pcgcs_summary.py` with the arguments `--z1_cov` and `--z2_cov`. If only `--z1_cov` is provided, PCGC-s will estimate heritability. If `--z2_nocov` is also provided, PCGC-s will also estimate heritability for the second study and genetic correlation between the two studies. 
  2. LD information: This can be provided exactly like explained above, via either the `--ref-ld` flag or via the `--mean-ld` flag.
@@ -189,14 +189,14 @@ Heritability and genetic correlation estimation with covariates requires several
 	
 
 <br><br>
-##Regression of Principal Components
+## Regression of Principal Components
 It is sometimes desirable to regress genotype vectors to the subspace that is orthogonal to the leading principal components in order to eliminate possible confounding due to population structure. This can be done in `pcgcs_direct.py` via the flags `--num_PCs1`, `--num_PCs2`. Unfortunately, this leads to biased estimates if not properly accounted for, because the regression shrinks all kiship coefficients towards zero. To see this, consider the fact that the sum of the squared kinship coefficients is equal to the sum of the squares of the eigenvalues of the kinship matrix; hence setting the leading eigenvalues to zero will shrink the sum of the squared kinship coefficients.
 
 To account for this deflation, `pcgcs_direct.py` will report the deflation factors in its output when one of the flags `--num_PCs1`, `--num_PCs2`, is invoked. Afterwards, the reported deflation factors should be passed to `pcgcs_summary.py`. The flag names are `--geno1_factor`, `--sqr_geno1_factor`, which report the deflation in the sum of the eigenvalues and in the sum of the squares of the eigenvalues (which corresponds to the sum of the diagonal of the kinship matrix and the sum of the squares of all kinship coefficients, respectively).
 Similar quantities will also be reported for study 2, and should be passed as well with the flags `--geno2_factor`, `--sqr_geno2_factor`.
 
 <br><br>
-#Important notes
+# Important notes
 1. Overlapping individuals (shared between the two studies) will not be automatically detected. Please make sure that overlapping individuals are clearly marked in the plink files by having exactly the same family id and individual id.
 
 2. `pcgcs_direct.py` attemps to avoid storing large matrices in memory, and in particular avoids computing kinship matrices. Instead, it computes intermediate matrices of size `w x n`, where `w` is the `mem_size` parameter and `n` is the study size. However, it keeps the full contents of the plink files in memory, which may itself take up large amounts of memory.
