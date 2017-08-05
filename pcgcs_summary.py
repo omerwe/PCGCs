@@ -202,7 +202,7 @@ def print_preamble():
 	print '*********************************************************************'
 	print '* PCGC-summary for heritability and genetic correlation estimates'
 	print '* Version 1.0.0'
-	print '* (C) 2016 Omer Weissbrod'
+	print '* (C) 2017 Omer Weissbrod'
 	print '* Technion - Israel Institute of Technology'
 	print '*********************************************************************'
 	print

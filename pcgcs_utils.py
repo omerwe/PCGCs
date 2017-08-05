@@ -12,6 +12,7 @@ import pysnptools.util.pheno as phenoUtils
 np.set_printoptions(precision=3, linewidth=200)
 import resource
 import copy
+from sklearn.linear_model import LinearRegression, LogisticRegression
 
 
 def memory_usage_resource():
@@ -26,12 +27,57 @@ def print_memory_usage(message=None):
 	return
 	if (message is not None): print message,
 	print 'memory: %0.5e'%(memory_usage_resource())
+	
+	
+	
+def prepare_PCGC(phe, prev, cov, return_intermediate=False):
+	y = (phe > phe.mean()).astype(np.int)
+	P = y.mean()
+	tau = stats.norm(0,1).isf(prev)
+	phi_tau = stats.norm(0,1).pdf(tau)
+	y_norm = (y-P) / np.sqrt(P*(1-P))
+	pcgc_coeff = P*(1-P) / (prev**2 * (1-prev)**2) * phi_tau**2
+	
+	
+	if (cov is None):
+		Pi = np.ones(len(phe)) * P
+	else:
+		logreg = LogisticRegression(penalty='l2', C=500000, fit_intercept=True)			
+		logreg.fit(cov, y)
+		Pi = logreg.predict_proba(cov)[:,1]
+		
+	K = prev
+	Ki = K*(1-P) / (P*(1-K)) * Pi / (1 + K*(1-P) / (P*(1-K))*Pi - Pi)
+	tau_i = stats.norm(0,1).isf(Ki)
+	tau_i[Ki>=1.] = -999999999
+	tau_i[Ki<=0.] = 999999999	
+	phi_tau_i = stats.norm(0,1).pdf(tau_i)
+	
+	u_prefix = phi_tau_i / np.sqrt(Pi*(1-Pi)) / (Ki + (1-Ki)*(K*(1-P))/(P*(1-K)))
+	u0 = u_prefix * K*(1-P) / (P*(1-K)) * Pi
+	u1 = u_prefix * (1-Pi)
+	#Q = np.outer(u0,u0) + np.outer(u0,u1) + np.outer(u1,u0) + np.outer(u1,u1)
+	
+	ty = (y-Pi) / np.sqrt(Pi * (1-Pi))
+	
+	if return_intermediate:
+		return K, P, Ki, Pi, phi_tau_i
+	
+	return y_norm, tau_i, pcgc_coeff, ty, u0, u1
+	
+	
 
 
 
-def loadData(bfile, extractSim, phenoFile, missingPhenotype='-9', loadSNPs=False, keep=None, standardize=False, fileNum=None):
+def loadData(bfile, extractSim, phenoFile, missingPhenotype='-9', loadSNPs=False, keep=None, standardize=False, fileNum=None, snp1=None, snp2=None):
 	try: bed = Bed(bfile, count_A1=True)
 	except: bed = Bed(bfile)
+	
+	if (snp1 is not None):
+		assert snp1>=1, 'snp1 must be >=1'
+		assert snp2 is not None
+		assert (snp2 <= len(bed.sid)), 'snp2 cannot be greater than %d'%(len(bed.sid))
+		bed = bed[:, (snp1-1):snp2]
 	
 	if (extractSim is not None):
 		try:
@@ -147,8 +193,10 @@ def read_bed_lowmem(bed):
 	for i in xrange(0, bed.iid.shape[0], batch_size):
 		bed_copy = copy.deepcopy(bed)
 		bed_copy = bed_copy[i:i+batch_size, :]
-		bed_copy=bed_copy.read()
-		X[i:i+batch_size, :] = bed_copy.val
+		bed_copy=bed_copy.read()		
+		last_snp = i+batch_size
+		if (last_snp >= X.shape[1]): last_snp = X.shape[1]		
+		X[i:last_snp, :] = bed_copy.val	
 	return X
 	
 	
@@ -168,7 +216,7 @@ def regress_PCs(snps, numPCs):
 	
 
 #Read and preprocess the data
-def read_SNPs(bfile1, pheno1, prev1, covar1=None, keep1=None, bfile2=None, pheno2=None, prev2=None, covar2=None, keep2=None, extract=None, missingPhenotype='-9', chr=None, norm=None, maf=None, center=False, lowmem=True):
+def read_SNPs(bfile1, pheno1, prev1, covar1=None, keep1=None, bfile2=None, pheno2=None, prev2=None, covar2=None, keep2=None, extract=None, missingPhenotype='-9', chr=None, norm=None, maf=None, center=False, lowmem=True, snp1=None, snp2=None):
 
 	print	
 	print
@@ -176,11 +224,12 @@ def read_SNPs(bfile1, pheno1, prev1, covar1=None, keep1=None, bfile2=None, pheno
 	print '----------------------------------------'
 
 	#read metadata
-	bed1, phe1 = loadData(bfile1, extract, pheno1, missingPhenotype, loadSNPs=False, standardize=False, keep=keep1, fileNum=1)	
+	bed1, phe1 = loadData(bfile1, extract, pheno1, missingPhenotype, loadSNPs=False, standardize=False, keep=keep1, fileNum=1, snp1=snp1, snp2=snp2)
 	assert len(np.unique(phe1)==2), 'phenotypes file 1 is not case-control data'
 	if (bfile2 is None):
 		bed2, phe2, X2 = None, None, None
 	else:
+		assert snp1 is None
 		bed2, phe2 = loadData(bfile2, extract, pheno2, missingPhenotype, loadSNPs=False, standardize=False, keep=keep2, fileNum=2)	
 		assert len(np.unique(phe2)==2), 'phenotypes file 2 is not case-control data'
 		
@@ -280,18 +329,37 @@ def read_SNPs(bfile1, pheno1, prev1, covar1=None, keep1=None, bfile2=None, pheno
 	
 	#standardize SNPs
 	if (norm=='bed' or norm is None):
+	
+		#impute SNPs (separately for cases and controls)
+		print 'imputing SNPs...'
+		X1[phe1>phe1.mean(), :] = imputeSNPs(X1[phe1>phe1.mean(), :])
+		X1[phe1<=phe1.mean(), :] = imputeSNPs(X1[phe1<=phe1.mean(), :])
+		assert np.all(~np.isnan(X1))
+		if (bfile2 is not None):
+			X2[phe2>phe2.mean(), :]  = imputeSNPs(X2[phe2>phe2.mean(), :])
+			X2[phe2<=phe2.mean(), :] = imputeSNPs(X2[phe2<=phe2.mean(), :])
+			assert np.all(~np.isnan(X2))
+	
 		print 'WARNING: normalizing SNPs using in-sample MAFs (highly unrecommended for case-control studies)'
 		#bed1=bed1.standardize()
-		X1 -= np.nanmean(X1, axis=0)
+		X1_nanmean = np.nanmean(X1, axis=0)
+		num_nan = np.sum(np.isnan(X1_nanmean))
+		if (num_nan > 0):		
+			print '%d SNPs have 0 MAF'%(num_nan)
+			###print bed1.sid[np.where(np.isnan(X1_nanmean))[0][:10]]
+		X1 -= X1_nanmean		
 		X1_std = np.nanstd(X1, axis=0)
-		X1_std[X1_std==0] = 1
+		X1_std[X1_std==0] = 1		
 		X1 /= X1_std
+		assert np.all(~np.isnan(X1))
 		if (bfile2 is not None):
 			#bed2=bed2.standardize()
 			X2 -= np.nanmean(X2, axis=0)
 			X2_std = np.nanstd(X2, axis=0)
 			X2_std[X2_std==0] = 1
-			X2 /= X2_std	
+			X2 /= X2_std
+			assert np.all(~np.isnan(X2))
+		
 		
 		print_memory_usage(2)
 		
@@ -302,9 +370,11 @@ def read_SNPs(bfile1, pheno1, prev1, covar1=None, keep1=None, bfile2=None, pheno
 		print 'imputing SNPs...'
 		X1[phe1>phe1.mean(), :] = imputeSNPs(X1[phe1>phe1.mean(), :])
 		X1[phe1<=phe1.mean(), :] = imputeSNPs(X1[phe1<=phe1.mean(), :])
+		assert np.all(~np.isnan(X1))
 		if (bfile2 is not None):
 			X2[phe2>phe2.mean(), :]  = imputeSNPs(X2[phe2>phe2.mean(), :])
-			X2[phe2<=phe2.mean(), :] = imputeSNPs(X2[phe2<=phe2.mean(), :])	
+			X2[phe2<=phe2.mean(), :] = imputeSNPs(X2[phe2<=phe2.mean(), :])
+			assert np.all(~np.isnan(X2))
 	
 		#read MAFs
 		df = pd.read_csv(maf, delimiter='\s+')		
@@ -336,22 +406,21 @@ def read_SNPs(bfile1, pheno1, prev1, covar1=None, keep1=None, bfile2=None, pheno
 		if (np.any(np.isnan(mafs))):
 			print 'removing %d SNPs with no MAF information'%(np.sum(np.isnan(mafs)))
 		bed1 = bed1[:, ~np.isnan(mafs)]
-		if lowmem: X1 = read_bed_lowmem(bed1)
-		else:
-			bed1=bed1.read()
-			X1 = bed1.val
+		X1 = X1[:, ~np.isnan(mafs)]
 		if (bfile2 is not None):
 			bed2 = bed2[:, ~np.isnan(mafs)]
-			if lowmem: X2 = read_bed_lowmem(bed2)
-			else:
-				bed2=bed2.read()
-				X2 = bed2.val
+			X2 = X2[:, ~np.isnan(mafs)]
 		mafs = mafs[~np.isnan(mafs)]
+		assert np.all(mafs>0.005)
+		assert np.all(mafs<0.51)
 		X1 -= 2*mafs
 		X1 /= np.sqrt(2*mafs*(1-mafs))
 		if (bfile2 is not None):			
 			X2 -= 2*mafs
 			X2 /= np.sqrt(2*mafs*(1-mafs))
+		assert np.all(~np.isnan(X1))
+		if (bfile2 is not None):
+			assert np.all(~np.isnan(X2))
 		
 		
 	elif (norm=='both'):

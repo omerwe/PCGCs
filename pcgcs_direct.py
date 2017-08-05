@@ -26,7 +26,7 @@ from pcgcs_utils import print_memory_usage
 	# print 'memory usage:', process.memory_info().rss
 	
 	
-def print_sumstats(cov1, u1_0, u1_1, var_t1, cov2, u2_0=None, u2_1=None, var_t2=None, sum_s1=None, sum_s1_sqr=None, sum_s2=None, sum_s2_sqr=None):
+def print_sumstats(cov1, u1_0, u1_1, var_t1, cov2, u2_0=None, u2_1=None, var_t2=None, s1=None, sum_s1=None, sum_s1_sqr=None, s2=None, sum_s2=None, sum_s2_sqr=None):
 	if (cov1 is None and cov2 is None and sum_s1 is None and sum_s2 is None): return
 	print
 	print
@@ -313,7 +313,7 @@ def print_preamble():
 	print '*********************************************************************'
 	print '* PCGC-direct for heritability and genetic correlation estimates'
 	print '* Version 1.0.0'
-	print '* (C) 2016 Omer Weissbrod'
+	print '* (C) 2017 Omer Weissbrod'
 	print '* Technion - Israel Institute of Technology'
 	print '*********************************************************************'
 	print
@@ -330,40 +330,21 @@ def varLiab_covar(prev, tau_i, phe):
 
 
 #initial computations required for PCGC
-def prepare_PCGC(phe, prev, cov, return_intermediate=False):
-	y = (phe > phe.mean()).astype(np.int)
-	P = y.mean()
-	tau = stats.norm(0,1).isf(prev)
-	phi_tau = stats.norm(0,1).pdf(tau)
-	y_norm = (y-P) / np.sqrt(P*(1-P))
-	pcgc_coeff = P*(1-P) / (prev**2 * (1-prev)**2) * phi_tau**2
+
 	
+def regress_given_PCs(X, cov, PC_indices):
+
+	assert np.all(PC_indices <= cov.shape[1]), 'given PC number cannot be larger than %d'%(cov.shape[1])
+	assert np.all(PC_indices > 0)
+	linreg = LinearRegression(fit_intercept=False)
+	assert np.all(~np.isnan(cov))
+	assert np.all(~np.isnan(cov[:, PC_indices-1]))
+	assert np.all(~np.isnan(X))
+	linreg.fit(cov[:, PC_indices-1], X)
+	X -= linreg.predict(cov[:, PC_indices-1])	
+	return X
+
 	
-	if (cov is None):
-		Pi = np.ones(len(phe)) * P
-	else:
-		logreg = LogisticRegression(penalty='l2', C=500000, fit_intercept=True)			
-		logreg.fit(cov, y)
-		Pi = logreg.predict_proba(cov)[:,1]
-		
-	K = prev
-	Ki = K*(1-P) / (P*(1-K)) * Pi / (1 + K*(1-P) / (P*(1-K))*Pi - Pi)
-	tau_i = stats.norm(0,1).isf(Ki)
-	tau_i[Ki>=1.] = -999999999
-	tau_i[Ki<=0.] = 999999999	
-	phi_tau_i = stats.norm(0,1).pdf(tau_i)
-	
-	u_prefix = phi_tau_i / np.sqrt(Pi*(1-Pi)) / (Ki + (1-Ki)*(K*(1-P))/(P*(1-K)))
-	u0 = u_prefix * K*(1-P) / (P*(1-K)) * Pi
-	u1 = u_prefix * (1-Pi)
-	#Q = np.outer(u0,u0) + np.outer(u0,u1) + np.outer(u1,u0) + np.outer(u1,u1)
-	
-	ty = (y-Pi) / np.sqrt(Pi * (1-Pi))
-	
-	if return_intermediate:
-		return K, P, Ki, Pi, phi_tau_i
-	
-	return y_norm, tau_i, pcgc_coeff, ty, u0, u1
 	
 
 if __name__ == '__main__':
@@ -406,6 +387,12 @@ if __name__ == '__main__':
 	parser.add_argument('--Gty1_cov_out', metavar='Gty1_cov_out', default=None, help='output file for covariates-summary information for individuals in study 1')
 	parser.add_argument('--Gty2_cov_out', metavar='Gty2_cov_out', default=None, help='output file for covariates-summary information for individuals in study 2')
 	
+	parser.add_argument('--PC1', metavar='PC1', default=None, help='comma-separated indices of covariates that are PCs in covar1 (starting from 1)')
+	parser.add_argument('--PC2', metavar='PC2', default=None, help='comma-separated indices of covariates that are PCs in covar2 (starting from 1)')
+
+	parser.add_argument('--snp1', metavar='snp1', default=None, type=int, help='read only a subset of SNPs starting from snp1, starting from 1 (must be specified with snp2)')
+	parser.add_argument('--snp2', metavar='snp1', default=None, type=int, help='read only a subset of SNPs ending with snp2, starting from 1 (must be specified with snp1)')
+	
 
 	args = parser.parse_args()
 	print_preamble()
@@ -424,6 +411,29 @@ if __name__ == '__main__':
 		assert args.z2_nocov_out is None, '--z2_nocov_out cannot be specified without --bfile2'
 		assert args.z2_cov_out is None, '--z2_cov_out cannot be specified without --bfile2'
 		assert args.numPCs2==0, '--numPCs2 cannot be specified without --bfile2'
+		assert args.PC2 is None, '--PC2 cannot be specified without --bfile2'
+		
+	if (args.numPCs1>0): assert args.PC1 is None, 'PC1 cannot be specified with numPCs1'
+	if (args.numPCs2>0): assert args.PC2 is None, 'PC2 cannot be specified with numPCs2'
+	
+	if (args.PC1 is not None):
+		assert args.covar1 is not None, '--PC1 cannot be specified without --covar1'
+		args.PC1 = np.array(args.PC1.split(','), dtype=np.int)
+		assert np.all(args.PC1 >= 1), '--PC1 numbers must be >=1'
+	if (args.PC2 is not None):
+		assert args.covar2 is not None, '--PC2 cannot be specified without --covar2'
+		args.PC2 = np.array(args.PC2.split(','), dtype=np.int)
+		assert np.all(args.PC2 >= 1), '--PC2 numbers must be >=1'
+		
+	
+	if (args.snp1 is not None):
+		assert args.snp1>=1, '--snp1 must be >=1'
+		assert args.snp2 is not None, '--snp1 must be specified with --snp2'
+		assert args.bfile2 is None, '--snp1 cannot be specified when two bfiles are provided'
+		assert args.Gty1_nocov_out is None, 'Gty1_nocov_out cannot be specified when --snp1 is set'
+		assert args.Gty1_cov_out is None, 'Gty1_cov_out cannot be specified when --snp1 is set'
+	if (args.snp2 is not None): assert args.snp1 is not None, '--snp2 must be specified with --snp1'
+	
 		
 	if (args.maf is not None): assert args.norm=='maf', '--maf option can only be used when "--norm maf" option is invoked'
 	if (args.norm == 'maf'): assert args.maf is not None, 'maf file must be provided to use "--norm maf"'
@@ -442,19 +452,27 @@ if __name__ == '__main__':
 	
 	
 	#read and preprocess the data
-	X1, bed1, phe1, cov1, X2, bed2, phe2, cov2 = pcgcs_utils.read_SNPs(bfile1=args.bfile1, pheno1=args.pheno1, prev1=args.prev1, covar1=args.covar1, keep1=args.keep1, bfile2=args.bfile2, pheno2=args.pheno2, prev2=args.prev2, covar2=args.covar2, keep2=args.keep2, extract=args.extract, missingPhenotype=args.missingPhenotype, chr=args.chr, norm=args.norm, maf=args.maf, center=args.center>0)
+	X1, bed1, phe1, cov1, X2, bed2, phe2, cov2 = pcgcs_utils.read_SNPs(bfile1=args.bfile1, pheno1=args.pheno1, prev1=args.prev1, covar1=args.covar1, keep1=args.keep1, bfile2=args.bfile2, pheno2=args.pheno2, prev2=args.prev2, covar2=args.covar2, keep2=args.keep2, extract=args.extract, missingPhenotype=args.missingPhenotype, chr=args.chr, norm=args.norm, maf=args.maf, center=args.center>0, snp1=args.snp1, snp2=args.snp2)
+	assert np.all(~np.isnan(X1))
+	if (cov1 is not None): assert np.all(~np.isnan(cov1))
 	
 	#regress out PCs
-	if (args.numPCs1 == 0): sum_s1, sum_s1_sqr = None, None
-	else:
+	s1, sum_s1, sum_s1_sqr = None, None, None
+	if (args.PC1 is not None):
+		print 'regressing given PCs out of bfile1'
+		X1 = regress_given_PCs(X1, cov1, args.PC1)
+	elif (args.numPCs1>0):
 		print 'Regressing top %d PCs out of bfile 1'%(args.numPCs1)
 		X1, U1, s1, sum_s1, sum_s1_sqr = pcgcs_utils.regress_PCs(X1, args.numPCs1)
 		print 'done'
 		if (cov1 is None): cov1 = U1
 		else: cov1 = np.concatenate((cov1, U1), axis=1)
 		
-	if (args.numPCs2 == 0): sum_s2, sum_s2_sqr = None, None
-	else:
+	s2, sum_s2, sum_s2_sqr = None, None, None
+	if (args.PC2 is not None):
+		print 'regressing given PCs out of bfile2'
+		X2 = regress_given_PCs(X2, cov2, args.PC2)
+	elif (args.numPCs2>0):
 		print 'Regressing top %d PCs out of bfile 2'%(args.numPCs2)
 		X2, U2, s2, sum_s2, sum_s2_sqr = pcgcs_utils.regress_PCs(X2, args.numPCs2)
 		print 'done'
@@ -477,13 +495,13 @@ if __name__ == '__main__':
 	print_memory_usage(4)
 		
 	#PCGC initial computations
-	y1_norm, tau_i_1, pcgc_coeff1, ty1, u1_0, u1_1 = prepare_PCGC(phe1, args.prev1, cov1)
+	y1_norm, tau_i_1, pcgc_coeff1, ty1, u1_0, u1_1 = pcgcs_utils.prepare_PCGC(phe1, args.prev1, cov1)
 	if (cov1 is not None): var_t1 = varLiab_covar(args.prev1, tau_i_1, phe1)
 	else: var_t1=0
 		
 	if (bed2 is None): u2_0, u2_1, var_t2 = None, None, None
 	else:
-		y2_norm, tau_i_2, pcgc_coeff2, ty2, u2_0, u2_1 = prepare_PCGC(phe2, args.prev2, cov2)
+		y2_norm, tau_i_2, pcgc_coeff2, ty2, u2_0, u2_1 = pcgcs_utils.prepare_PCGC(phe2, args.prev2, cov2)
 		if (cov2 is not None): var_t2 = varLiab_covar(args.prev2, tau_i_2, phe2)
 		else: var_t2=0		
 		pcgc_coeff12 = np.sqrt(pcgc_coeff1 * pcgc_coeff2)
@@ -531,7 +549,7 @@ if __name__ == '__main__':
 		df.to_csv(args.Gty2_cov_out, sep='\t', index=False, float_format='%0.6e', header=None)
 
 	if (args.sumstats_only > 0):
-		print_sumstats(cov1, u1_0, u1_1, var_t1, cov2, u2_0, u2_1, var_t2, sum_s1, sum_s1_sqr, sum_s2, sum_s2_sqr)
+		print_sumstats(cov1, u1_0, u1_1, var_t1, cov2, u2_0, u2_1, var_t2, s1, sum_s1, sum_s1_sqr, s2, sum_s2, sum_s2_sqr)
 		sys.exit(0)
 		
 
@@ -738,4 +756,4 @@ if __name__ == '__main__':
 			
 				
 	
-	print_sumstats(cov1, u1_0, u1_1, var_t1, cov2, u2_0, u2_1, var_t2, sum_s1, sum_s1_sqr, sum_s2, sum_s2_sqr)
+	print_sumstats(cov1, u1_0, u1_1, var_t1, cov2, u2_0, u2_1, var_t2, s1, sum_s1, sum_s1_sqr, s2, sum_s2, sum_s2_sqr)
