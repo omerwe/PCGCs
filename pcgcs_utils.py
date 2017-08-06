@@ -185,7 +185,6 @@ def imputeSNPs(X):
 	return X
 	
 
-	
 def read_bed_lowmem(bed):
 	X = np.empty((bed.iid.shape[0], bed.sid.shape[0]), dtype=np.float32)
 	batch_size = 1000
@@ -193,11 +192,10 @@ def read_bed_lowmem(bed):
 	for i in xrange(0, bed.iid.shape[0], batch_size):
 		bed_copy = copy.deepcopy(bed)
 		bed_copy = bed_copy[i:i+batch_size, :]
-		bed_copy=bed_copy.read()		
-		last_snp = i+batch_size
-		if (last_snp >= X.shape[1]): last_snp = X.shape[1]		
-		X[i:last_snp, :] = bed_copy.val	
+		bed_copy=bed_copy.read()
+		X[i:i+batch_size, :] = bed_copy.val
 	return X
+	
 	
 	
 #Regress top PCs out of the genotypes matrix
