@@ -125,7 +125,8 @@ def checkIntersection(bed, fileDict, fileStr, checkSuperSet=False):
 	bedSet = set((b[0], b[1]) for b in bed.iid)
 	fileSet = set((b[0], b[1]) for b in fileDict['iid'])
 	
-	if checkSuperSet:
+	if checkSuperSet:	
+		##print len([c for c in bedSet if c not in fileSet])
 		if (not fileSet.issuperset(bedSet)): raise Exception(fileStr + " file does not include all individuals in the bfile")
 	
 	intersectSet = bedSet.intersection(fileSet)
@@ -139,7 +140,7 @@ def symmetrize(a):
 	
 
 def loadCovars(bed, covarFile):
-	covarsDict = phenoUtils.loadPhen(covarFile)
+	covarsDict = phenoUtils.loadPhen(covarFile)	
 	checkIntersection(bed, covarsDict, 'covariates', checkSuperSet=True)
 	_, covarsDict = pstutil.intersect_apply([bed, covarsDict])
 	covar = covarsDict['vals']

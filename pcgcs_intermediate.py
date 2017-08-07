@@ -55,7 +55,19 @@ def varLiab_covar(prev, tau_i, phe):
 	var_t = var_E_t_given_y + E_var_t_given_y
 	return var_t
 
-	
+def regress_given_PCs(X, cov, PC_indices):
+
+	assert np.all(PC_indices <= cov.shape[1]), 'given PC number cannot be larger than %d'%(cov.shape[1])
+	assert np.all(PC_indices > 0)
+	linreg = LinearRegression(fit_intercept=False)
+	assert np.all(~np.isnan(cov))
+	assert np.all(~np.isnan(cov[:, PC_indices-1]))
+	assert np.all(~np.isnan(X))
+	linreg.fit(cov[:, PC_indices-1], X)
+	X -= linreg.predict(cov[:, PC_indices-1])	
+	return X
+
+
 
 if __name__ == '__main__':
 
@@ -74,6 +86,7 @@ if __name__ == '__main__':
 	parser.add_argument('--missingPhenotype', metavar='missingPhenotype', default='-9', help='identifier for missing values (default: -9)')
 	parser.add_argument('--center', metavar='center', type=int, default=1, help='whether to center SNPs prior to computing kinship (0 or 1, default 1)')	
 	parser.add_argument('--mem_size', metavar='mem_size', type=int, default=50000, help='maximal number of SNPs that will be read in a single batch (smaller values will use less memory but will take more time)')	
+	parser.add_argument('--PC', metavar='PC', default=None, help='comma-separated indices of covariates that are PCs (starting from 1)')
 	
 	parser.add_argument('--Gty_nocov_out', metavar='Gty_nocov_out', default=None, help='output file for covariate-less summary information')
 	parser.add_argument('--Gty_cov_out', metavar='Gty_cov_out', default=None, help='output file for covariates-summary information')
@@ -83,7 +96,7 @@ if __name__ == '__main__':
 	
 	args = parser.parse_args()
 	print_preamble()	
-		
+
 	
 	if (args.Gty_cov_out is not None):
 		assert args.covar is not None, '--Gty_cov_out must be specified with --covar'
@@ -91,10 +104,12 @@ if __name__ == '__main__':
 	if (args.mean_ld is not None): assert args.ref_ld is None, 'ref-ld and mean-ld cannot both be specified'
 	if (args.mean_ld is None):
 		assert args.ref_ld is not None, 'either ref-ld or mean-ld must be specified'
-			
-
-	args = parser.parse_args()
-	print_preamble()
+		
+	if (args.PC is not None):
+		assert args.covar is not None, '--PC cannot be specified without --covar'
+		args.PC = np.array(args.PC.split(','), dtype=np.int)
+		assert np.all(args.PC >= 1), '--PC numbers must be >=1'
+	
 	
 	#find number of SNPs
 	try: bed = Bed(args.bfile, count_A1=True)
@@ -116,6 +131,10 @@ if __name__ == '__main__':
 		X, _, phe, cov, _, _, _, _ = pcgcs_utils.read_SNPs(bfile1=args.bfile, pheno1=args.pheno, 
 				prev1=args.prev, covar1=args.covar, keep1=args.keep, extract=args.extract, missingPhenotype=args.missingPhenotype,
 				chr=None, norm=args.norm, maf=args.maf, center=args.center>0, snp1=snp1+1, snp2=snp2+1)
+				
+		if (args.PC is not None):
+			print 'regressing given PCs out of bfile'
+			X = regress_given_PCs(X, cov, args.PC)
 			
 		if (G_diag is None): G_diag = np.zeros(X.shape[0])		
 		G_diag += np.einsum('ij,ij->i', X,X)
