@@ -135,7 +135,7 @@ def checkIntersection(bed, fileDict, fileStr, checkSuperSet=False):
 
 	
 def symmetrize(a):
-    return a + a.T - np.diag(a.diagonal())
+	return a + a.T - np.diag(a.diagonal())
 	
 	
 
@@ -179,9 +179,17 @@ def imputeSNPs(X):
 	# X[isNan]=0
 	# X += isNan*snpsMean
 	
-	#slower code but more memory efficient
-	for i,m in enumerate(snpsMean):		
-		X[np.isnan(X[:,i]), i] = m
+	# #slower code but more memory efficient
+	# for i,m in enumerate(snpsMean):		
+		# X[np.isnan(X[:,i]), i] = m
+		
+	#intermediate code
+	batch_size = 10000
+	for i in xrange(0, len(snpsMean), batch_size):
+		X_batch = X[:, i:i+batch_size]
+		isNan = np.isnan(X_batch)
+		X_batch[isNan] = 0
+		X_batch += isNan*snpsMean[i:i+batch_size]
 		
 	return X
 	
@@ -272,7 +280,8 @@ def read_SNPs(bfile1, pheno1, prev1, covar1=None, keep1=None, bfile2=None, pheno
 		num_diff = np.zeros(bed1.sid.shape[0], dtype=np.int)
 		for i1, ind1 in enumerate(bed1.iid[:,1]):
 			for i2, ind2 in enumerate(bed2.iid[:,1]):
-				if (ind1 != ind2): continue					
+				if (bed1.iid[i1,0] != bed2.iid[i2,0]): continue
+				if (bed1.iid[i1,1] != bed2.iid[i2,1]): continue				
 				snps1 = X1[i1]
 				snps2 = X2[i2]
 				diff_spots = ((~np.isnan(snps1)) & (~np.isnan(snps2)) & (snps1 != snps2))
@@ -287,7 +296,8 @@ def read_SNPs(bfile1, pheno1, prev1, covar1=None, keep1=None, bfile2=None, pheno
 			#sanity check
 			for i1, ind1 in enumerate(bed1.iid[:,1]):
 				for i2, ind2 in enumerate(bed2.iid[:,1]):
-					if (ind1 != ind2): continue
+					if (bed1.iid[i1,0] != bed2.iid[i2,0]): continue
+					if (bed1.iid[i1,1] != bed2.iid[i2,1]): continue
 					snps1 = X1[i1, is_diff_strand]
 					snps2 = X2[i2, is_diff_strand]
 					
@@ -335,7 +345,7 @@ def read_SNPs(bfile1, pheno1, prev1, covar1=None, keep1=None, bfile2=None, pheno
 		X1[phe1<=phe1.mean(), :] = imputeSNPs(X1[phe1<=phe1.mean(), :])
 		assert np.all(~np.isnan(X1))
 		if (bfile2 is not None):
-			X2[phe2>phe2.mean(), :]  = imputeSNPs(X2[phe2>phe2.mean(), :])
+			X2[phe2>phe2.mean(), :]	 = imputeSNPs(X2[phe2>phe2.mean(), :])
 			X2[phe2<=phe2.mean(), :] = imputeSNPs(X2[phe2<=phe2.mean(), :])
 			assert np.all(~np.isnan(X2))
 	
@@ -371,7 +381,7 @@ def read_SNPs(bfile1, pheno1, prev1, covar1=None, keep1=None, bfile2=None, pheno
 		X1[phe1<=phe1.mean(), :] = imputeSNPs(X1[phe1<=phe1.mean(), :])
 		assert np.all(~np.isnan(X1))
 		if (bfile2 is not None):
-			X2[phe2>phe2.mean(), :]  = imputeSNPs(X2[phe2>phe2.mean(), :])
+			X2[phe2>phe2.mean(), :]	 = imputeSNPs(X2[phe2>phe2.mean(), :])
 			X2[phe2<=phe2.mean(), :] = imputeSNPs(X2[phe2<=phe2.mean(), :])
 			assert np.all(~np.isnan(X2))
 	
@@ -441,9 +451,9 @@ def read_SNPs(bfile1, pheno1, prev1, covar1=None, keep1=None, bfile2=None, pheno
 		
 		#impute SNPs (separately for cases and controls)
 		print 'imputing SNPs...'
-		X1[phe1>phe1.mean(), :]  = imputeSNPs(X1[phe1>phe1.mean(), :])
+		X1[phe1>phe1.mean(), :]	 = imputeSNPs(X1[phe1>phe1.mean(), :])
 		X1[phe1<=phe1.mean(), :] = imputeSNPs(X1[phe1<=phe1.mean(), :])
-		X2[phe2>phe2.mean(), :]  = imputeSNPs(X2[phe2>phe2.mean(), :])
+		X2[phe2>phe2.mean(), :]	 = imputeSNPs(X2[phe2>phe2.mean(), :])
 		X2[phe2<=phe2.mean(), :] = imputeSNPs(X2[phe2<=phe2.mean(), :])
 		
 		#normalize SNPs

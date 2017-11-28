@@ -383,7 +383,7 @@ if __name__ == '__main__':
 			elif (len(uniq_phe1) == 1):
 				assert uniq_phe1[0] in [0,1,2], 'non-binary phenotype found in pheno1 file'
 				if (uniq_phe1[0]==2): uniq_phe1[0]=1
-				print 'only one phenotype code found in pheon1 file'
+				print 'only one phenotype code found in pheno1 file'
 				if (uniq_phe1[0] == 1): print 'treating all individuals in pheno1 file as cases'
 				elif (uniq_phe1[0]==0): print 'treating all individuals in pheno1 file as controls'				
 				y1_norm_overlap = np.ones(len(phe1)) * (uniq_phe1[0] - args.P1) / np.sqrt(args.P1 * (1-args.P1))
