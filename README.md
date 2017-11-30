@@ -10,11 +10,10 @@ PCGC-s is designed to work in Python 2.7, and depends on the following freely av
 * [numpy](http://www.numpy.org/) and [scipy](http://www.scipy.org/)
 * [scikit-learn](http://scikit-learn.org/stable/)
 * [PySnpTools](https://github.com/MicrosoftGenomics/PySnpTools)
+* [Pandas](https://pandas.pydata.org/getpandas.html)
 
 Typically, the packages can be installed with the command "pip install --user \<package_name\>".
-
-PCGC-s is particularly easy to use with the [Anaconda Python distribution](https://store.continuum.io/cshop/anaconda). The [numerically optimized version](http://docs.continuum.io/mkl-optimizations/index) of Anaconda can speed PCGC-s significantly.
-Alternatively (if numerically optimized Anaconda can't be installed), for very fast performance it is recommended to have an optimized version of Numpy/Scipy [installed on your system](http://www.scipy.org/scipylib/building), using optimized numerical libraries such as [OpenBLAS](http://www.openblas.net) or [Intel MKL](https://software.intel.com/en-us/intel-mkl) (see [Compilation instructions for scipy with Intel MKL)](https://software.intel.com/en-us/articles/numpyscipy-with-intel-mkl).
+PCGC-s is particularly easy to use with the [Anaconda Python distribution](https://store.continuum.io/cshop/anaconda).
 
 Once all the prerequisite packages are installed, PCGC-s can be installed on a git-enabled machine by typing:
 ```
@@ -98,12 +97,13 @@ If turned on, `PCGCs_direct.py` will only compute summary statistics without com
 ```
 `pcgcs_direct.py` avoids computing large kinship matrices to save memory. Instead, it computes intermediate kinship matrices of size `mem_size x n` (rather than full kinship matrices of size `n x n`). This is useful for very large studies, where the kinship matrix is very large. By default `mem size = 1000`. Using smaller values will require less memory but may increase the run-time. Note that `pcgcs_direct.py` stores the entire contents of the plink files in memory, which may themselves be very large.
 
+```
+--snp1 <snp number>
+--snp2 <snp number>
+```
+These options tell `pcgcs_direct.py` to compute summary statistics only for the range of SNPs snp1-snp2 (the first SNP has the number 1). This is useful for large data sets that cannot fit in the computer memory. The summary statistics can then be joined together and then analyzed with `pcgcs_direct.py`, as explained in the **Working with Huge Datasets** section below.
 
-#### Jackknife options:
-```
---jackknife 0/1
-```
-This will toggle jackknife-based standard error computations on or off. By default this is turned on. Turning this off will speed up the computations significatly, but standard errors will not be reported.
+
 
 #### Permutation testing:
 ```
@@ -130,7 +130,7 @@ Similar options exist also for study 2 (`--z2_nocov_out` and `--z2_cov_out`).
 ```
 These two output files contain individual-specific information required to compute the second term of the numerator of the PCGC estimator (the so-called intercept of LD score regression). `--Gty1_nocov_out` creates a file that ignores covaraites, whereas `-Gty1_cov_out` creates a covariates-aware file.
 
-The information in the file `Gty1_nocov_out` is not strictly required for subsequent analysis, but including it may result in increased accuracy. However, the information in  `Gty1_cov_out` must be provided if one wishes to estimate genetic correlation between studies with overlapping individuals. Note that these files expose a (noisy version of) the phenotypes of individuals, as well as some information about their covariates. In practise only information about overlapping individuals between two studies is strictly required: One may delete information about other individuals from the output files if privacy is a concern.
+The information in the file `Gty1_nocov_out` is not strictly required for subsequent analysis, but including it may result in increased accuracy. However, the information in  `Gty1_cov_out` must be provided if one wishes to estimate genetic correlation between studies with overlapping individuals. Note that these files expose a (noisy version of) the phenotypes of individuals, as well as some information about their covariates. In practice only information about overlapping individuals between two studies is strictly required: One may delete information about other individuals from the output files if privacy is a concern.
 Similar options can be provided for study 2.
 
 
@@ -190,16 +190,38 @@ Heritability and genetic correlation estimation with covariates requires several
 
 <br><br>
 ## Regression of Principal Components
-It is sometimes desirable to regress genotype vectors to the subspace that is orthogonal to the leading principal components in order to eliminate possible confounding due to population structure. This can be done in `pcgcs_direct.py` via the flags `--num_PCs1`, `--num_PCs2`. Unfortunately, this leads to biased estimates if not properly accounted for, because the regression shrinks all kiship coefficients towards zero. To see this, consider the fact that the sum of the squared kinship coefficients is equal to the sum of the squares of the eigenvalues of the kinship matrix; hence setting the leading eigenvalues to zero will shrink the sum of the squared kinship coefficients.
+It is sometimes desirable to include principal components (PCs) as covariates in the analysis to prevent possible confounding due to population structure. We recommend computing principal components via external software (e.g. [FlashPCA2](https://github.com/gabraham/flashpca)) and including them as additional covariates in the covariates file. 
 
-To account for this deflation, `pcgcs_direct.py` will report the deflation factors in its output when one of the flags `--num_PCs1`, `--num_PCs2`, is invoked. Afterwards, the reported deflation factors should be passed to `pcgcs_summary.py`. The flag names are `--geno1_factor`, `--sqr_geno1_factor`, which report the deflation in the sum of the eigenvalues and in the sum of the squares of the eigenvalues (which corresponds to the sum of the diagonal of the kinship matrix and the sum of the squares of all kinship coefficients, respectively).
+A particular complexity of case-control studies is that the PCs are reflected in the kinship matrix entries, which can bias the estimation. It is therefore recommended to regress genotype vectors to the subspace that is orthogonal to the leading PCs. This can be done in `pcgcs_direct.py` via the flags `--PC1 <i1,i2,...,im>`, `--PC2 <i1,i2,...,im>`, where the arguments are a comma-separated list of covariate indices that are principal components (starting from 1). For example, if a covariates file includes 5 PCs and a sex covariate, the flag should be specified as `--PC1 1,2,3,4,5`.
+
+Unfortunately, regression of PCs out of genotype vectors leads to biased estimates if not properly accounted for, because the regression shrinks all kiship coefficients towards zero. To see this, consider the fact that the sum of the squared kinship coefficients is equal to the sum of the squares of the eigenvalues of the kinship matrix; hence setting the leading eigenvalues to zero will shrink the sum of the squared kinship coefficients. To account for this deflation, `pcgcs_direct.py` will report the deflation factors in its output when one of the flags `--PC1`, `--PC2`, is invoked. Afterwards, the reported deflation factors should be passed to `pcgcs_summary.py`. The flag names are `--geno1_factor`, `--sqr_geno1_factor`, which report the deflation in the sum of the eigenvalues and in the sum of the squares of the eigenvalues (which corresponds to the sum of the diagonal of the kinship matrix and the sum of the squares of all kinship coefficients, respectively).
 Similar quantities will also be reported for study 2, and should be passed as well with the flags `--geno2_factor`, `--sqr_geno2_factor`.
+
+
+<br><br>
+## Working with Huge Datasets
+`pcgcs_direct.py` may have difficulty loading the entire matrix of genotypes into memory at once. To alleviate this concern, it is possible to compute summary statitics for different subsets of SNPs, and then concatenate them together and analyze the concatenated files with `pcgcs_summary.py`. This can be done with the flags `--snp1 <snp number>`, `--snp2 <snp number>`, as explained above. For example, one can run the following commands:
+
+`pcgcs_summary.py --bfile <bfile> --pheno <pheno> --covar <covar> --snp1 1 --snp2 50000 --z1_cov_out z1_1_50000.csv`
+
+`pcgcs_summary.py --bfile <bfile> --pheno <pheno> --covar <covar> --snp1 50001 --snp2 100000 --z1_cov_out z1_50001_100000.csv`
+
+`zcat z1_1_50000.csv.gz > z1_combined.csv`
+
+`zcat z1_50001_100000.csv | tail -n +2 >> z1_combined.csv`
+
+These commands will invoke `pcgcs_summary.py`, once for SNPs 1-50000 and once for SNPs 500001-100000. The next two commands will concatenate the summary statistics together into `z1_combined.csv` (while making sure to only include a single header from the first file).
+
+When this is done, we still need to compute several required quantities, such as Gty files. This can be done using the script `pcgcs_intermediate.py`. This script accepts many of the same arguments as `pcgcs_direct.py`. The most important argument is `--mem_size <#SNPs>`, which will limit the number of SNPs loaded into memory at once. The second new argument that should be provided is `--eigenvalues_frac <f1,f2,...,fm>`. This argument provides a comma-separated list of fraction of variance explained by the PCs that are specified using the flag `--PC`. These are provided by [FlashPCA2](https://github.com/gabraham/flashpca) in the file pve.txt.
+
+After finising running `pcgcs_intermediate.py`, we can continue to run `pcgcs_summary.py` as usual.
+
 
 <br><br>
 # Important notes
 1. Overlapping individuals (shared between the two studies) will not be automatically detected. Please make sure that overlapping individuals are clearly marked in the plink files by having exactly the same family id and individual id.
 
-2. `pcgcs_direct.py` attemps to avoid storing large matrices in memory, and in particular avoids computing kinship matrices. Instead, it computes intermediate matrices of size `w x n`, where `w` is the `mem_size` parameter and `n` is the study size. However, it keeps the full contents of the plink files in memory, which may itself take up large amounts of memory.
+2. `pcgcs_direct.py` attemps to avoid storing large matrices in memory, and in particular avoids computing kinship matrices. Instead, it computes intermediate matrices of size `w x n`, where `w` is the `mem_size` parameter and `n` is the study size. However, it keeps the full contents of the plink files in memory, which may itself take up large amounts of memory. If this is a problem, please refer to the `Working with Huge Datasets` section above.
 
 
 <br><br>
