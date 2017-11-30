@@ -382,7 +382,7 @@ if __name__ == '__main__':
 
     
     parser.add_argument('--mem_size', metavar='mem_size', type=int, default=1000, help='The maximum number of rows in each kinship matrix to be computed. Larger values will improve run-time take up more memory')
-    parser.add_argument('--jackknife', metavar='jackknife', type=int, default=1, help='Whether jackknife-based standard errors will be computed (0 or 1, default 1)')
+    parser.add_argument('--jackknife', metavar='jackknife', type=int, default=0, help='Whether jackknife-based standard errors will be computed (0 or 1, default 1)')
     parser.add_argument('--num_perms', metavar='num_perms', type=int, default=0, help='number of permutation testing iterations')   
     
     parser.add_argument('--z1_nocov_out', metavar='z1_nocov_out', default=None, help='output file for Z-score statistics for study 1 without covariates')   
