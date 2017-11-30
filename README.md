@@ -202,8 +202,11 @@ Similar quantities will also be reported for study 2, and should be passed as we
 `pcgcs_direct.py` may have difficulty loading the entire matrix of genotypes into memory at once. To alleviate this concern, it is possible to compute summary statitics for different subsets of SNPs, and then concatenate them together and analyze the concatenated files with `pcgcs_summary.py`. This can be done with the flags `--snp1 <snp number>`, `--snp2 <snp number>`, as explained above. For example, one can run the following commands:
 
 `pcgcs_summary.py --bfile <bfile> --pheno <pheno> --covar <covar> --snp1 1 --snp2 50000 --z1_cov_out z1_1_50000.csv`
+
 `pcgcs_summary.py --bfile <bfile> --pheno <pheno> --covar <covar> --snp1 50001 --snp2 100000 --z1_cov_out z1_50001_100000.csv`
+
 `zcat z1_1_50000.csv.gz > z1_combined.csv`
+
 `zcat z1_50001_100000.csv | tail -n +2 >> z1_combined.csv`
 
 These commands will invoke `pcgcs_summary.py`, once for SNPs 1-50000 and once for SNPs 500001-100000. The next two commands will concatenate the summary statistics together (while making sure to only include a single header from the first file).
