@@ -101,7 +101,7 @@ If turned on, `PCGCs_direct.py` will only compute summary statistics without com
 --snp1 <snp number>
 --snp2 <snp number>
 ```
-These options tell `pcgcs_direct.py` to compute summary statistics only for the range of SNPs snp1-snp2 (the first SNP has the number 1). This is useful for large data sets that cannot fit in the computer memory. The summary statistics can then be joined together and then analyzed with `pcgcs_direct.py`, as explained in the `Working with huge datasets` section below.
+These options tell `pcgcs_direct.py` to compute summary statistics only for the range of SNPs snp1-snp2 (the first SNP has the number 1). This is useful for large data sets that cannot fit in the computer memory. The summary statistics can then be joined together and then analyzed with `pcgcs_direct.py`, as explained in the **Working with huge datasets** section below.
 
 
 
@@ -130,7 +130,7 @@ Similar options exist also for study 2 (`--z2_nocov_out` and `--z2_cov_out`).
 ```
 These two output files contain individual-specific information required to compute the second term of the numerator of the PCGC estimator (the so-called intercept of LD score regression). `--Gty1_nocov_out` creates a file that ignores covaraites, whereas `-Gty1_cov_out` creates a covariates-aware file.
 
-The information in the file `Gty1_nocov_out` is not strictly required for subsequent analysis, but including it may result in increased accuracy. However, the information in  `Gty1_cov_out` must be provided if one wishes to estimate genetic correlation between studies with overlapping individuals. Note that these files expose a (noisy version of) the phenotypes of individuals, as well as some information about their covariates. In practise only information about overlapping individuals between two studies is strictly required: One may delete information about other individuals from the output files if privacy is a concern.
+The information in the file `Gty1_nocov_out` is not strictly required for subsequent analysis, but including it may result in increased accuracy. However, the information in  `Gty1_cov_out` must be provided if one wishes to estimate genetic correlation between studies with overlapping individuals. Note that these files expose a (noisy version of) the phenotypes of individuals, as well as some information about their covariates. In practice only information about overlapping individuals between two studies is strictly required: One may delete information about other individuals from the output files if privacy is a concern.
 Similar options can be provided for study 2.
 
 
@@ -190,9 +190,11 @@ Heritability and genetic correlation estimation with covariates requires several
 
 <br><br>
 ## Regression of Principal Components
-It is sometimes desirable to regress genotype vectors to the subspace that is orthogonal to the leading principal components in order to eliminate possible confounding due to population structure. This can be done in `pcgcs_direct.py` via the flags `--num_PCs1`, `--num_PCs2`. Unfortunately, this leads to biased estimates if not properly accounted for, because the regression shrinks all kiship coefficients towards zero. To see this, consider the fact that the sum of the squared kinship coefficients is equal to the sum of the squares of the eigenvalues of the kinship matrix; hence setting the leading eigenvalues to zero will shrink the sum of the squared kinship coefficients.
+It is sometimes desirable to include principal components (PCs) as covariates in the analysis to prevent possible confounding due to population structure. We recommend computing principal components via external software (e.g. [FlashPCA2](https://github.com/gabraham/flashpca)) and include them in the list of covariates. 
 
-To account for this deflation, `pcgcs_direct.py` will report the deflation factors in its output when one of the flags `--num_PCs1`, `--num_PCs2`, is invoked. Afterwards, the reported deflation factors should be passed to `pcgcs_summary.py`. The flag names are `--geno1_factor`, `--sqr_geno1_factor`, which report the deflation in the sum of the eigenvalues and in the sum of the squares of the eigenvalues (which corresponds to the sum of the diagonal of the kinship matrix and the sum of the squares of all kinship coefficients, respectively).
+A particular complexity of case-control studies is that the PCs are reflected in the kinship matrix entries, which can bias the estimation. It is therefore recommended to regress genotype vectors to the subspace that is orthogonal to the leading PCs. This can be done in `pcgcs_direct.py` via the flags `--PC1 <i1,i2,...,im>`, `--PC2 <i1,i2,...,im>`, where the arguments are a comma-separated list of covariate indices that are principal components (starting from 1). For example, if a covariates file includes 5 PCs and a sex covariate, the flag should be specified as `--PC1 1,2,3,4,5`.
+
+Unfortunately, regression of PCs out of genotype vectors leads to biased estimates if not properly accounted for, because the regression shrinks all kiship coefficients towards zero. To see this, consider the fact that the sum of the squared kinship coefficients is equal to the sum of the squares of the eigenvalues of the kinship matrix; hence setting the leading eigenvalues to zero will shrink the sum of the squared kinship coefficients. To account for this deflation, `pcgcs_direct.py` will report the deflation factors in its output when one of the flags `--num_PCs1`, `--num_PCs2`, is invoked. Afterwards, the reported deflation factors should be passed to `pcgcs_summary.py`. The flag names are `--geno1_factor`, `--sqr_geno1_factor`, which report the deflation in the sum of the eigenvalues and in the sum of the squares of the eigenvalues (which corresponds to the sum of the diagonal of the kinship matrix and the sum of the squares of all kinship coefficients, respectively).
 Similar quantities will also be reported for study 2, and should be passed as well with the flags `--geno2_factor`, `--sqr_geno2_factor`.
 
 <br><br>
