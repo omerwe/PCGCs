@@ -35,6 +35,10 @@ python pcgcs_direct.py --help
 python pcgcs_summary.py --help
 ```
 
+In addition, the file `pcgcs_intermediate.py` can help with the analysis of large data sets that cannot all fit into the computer memory at once, as explained in the **Working with Huge Datasets** section below.
+
+
+
 ## TL;DR
 For an example, please go to the "example" directory and run the following two commands (using the anaconda version of python if available):
 ```
@@ -212,7 +216,11 @@ Similar quantities will also be reported for study 2, and should be passed as we
 
 These commands will invoke `pcgcs_summary.py`, once for SNPs 1-50000 and once for SNPs 500001-100000. The next two commands will concatenate the summary statistics together into `z1_combined.csv` (while making sure to only include a single header from the first file).
 
-When this is done, we still need to compute several required quantities, such as Gty files. This can be done using the script `pcgcs_intermediate.py`. This script accepts many of the same arguments as `pcgcs_direct.py`. The most important argument is `--mem_size <#SNPs>`, which will limit the number of SNPs loaded into memory at once. The second new argument that should be provided is `--eigenvalues_frac <f1,f2,...,fm>`. This argument provides a comma-separated list of fraction of variance explained by the PCs that are specified using the flag `--PC`. These are provided by [FlashPCA2](https://github.com/gabraham/flashpca) in the file pve.txt.
+When this is done, we still need to compute several required quantities, such as Gty files. This can be done using the script `pcgcs_intermediate.py`. This script accepts many of the same arguments as `pcgcs_direct.py` (as can be examined with the command `python pcgcs_intermediate.py --help`). The most important argument is `--mem_size <#SNPs>`, which will limit the number of SNPs loaded into memory at once. The second new argument that should be provided is `--eigenvalues_frac <f1,f2,...,fm>`. This argument provides a comma-separated list of fraction of variance explained by the PCs that are specified using the flag `--PC`. These are provided by [FlashPCA2](https://github.com/gabraham/flashpca) in the file pve.txt.
+
+A typical use example is:
+`python pcgcs_intermediate.py --bfile <plink file> --pheno <pheno file> --covar <covariates file> --prev <trait prevalence> --norm maf --maf <MAFs file> --PC 1,2,3,4,5,6,7,8,9,10 --Gty_nocov_out Gty1_nocov.txt --Gty_cov_out Gty1_cov.txt --ref-ld <ref-ld file> --eigenvalues_frac 0.0013,0.00066,0.00048,0.00038,0.00037,0.00035,0.00034,0.00034,0.00034,0.00033`
+
 
 After finising running `pcgcs_intermediate.py`, we can continue to run `pcgcs_summary.py` as usual.
 
