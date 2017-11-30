@@ -10,11 +10,10 @@ PCGC-s is designed to work in Python 2.7, and depends on the following freely av
 * [numpy](http://www.numpy.org/) and [scipy](http://www.scipy.org/)
 * [scikit-learn](http://scikit-learn.org/stable/)
 * [PySnpTools](https://github.com/MicrosoftGenomics/PySnpTools)
+* [Pandas](https://pandas.pydata.org/getpandas.html)
 
 Typically, the packages can be installed with the command "pip install --user \<package_name\>".
-
-PCGC-s is particularly easy to use with the [Anaconda Python distribution](https://store.continuum.io/cshop/anaconda). The [numerically optimized version](http://docs.continuum.io/mkl-optimizations/index) of Anaconda can speed PCGC-s significantly.
-Alternatively (if numerically optimized Anaconda can't be installed), for very fast performance it is recommended to have an optimized version of Numpy/Scipy [installed on your system](http://www.scipy.org/scipylib/building), using optimized numerical libraries such as [OpenBLAS](http://www.openblas.net) or [Intel MKL](https://software.intel.com/en-us/intel-mkl) (see [Compilation instructions for scipy with Intel MKL)](https://software.intel.com/en-us/articles/numpyscipy-with-intel-mkl).
+PCGC-s is particularly easy to use with the [Anaconda Python distribution](https://store.continuum.io/cshop/anaconda).
 
 Once all the prerequisite packages are installed, PCGC-s can be installed on a git-enabled machine by typing:
 ```
@@ -98,12 +97,13 @@ If turned on, `PCGCs_direct.py` will only compute summary statistics without com
 ```
 `pcgcs_direct.py` avoids computing large kinship matrices to save memory. Instead, it computes intermediate kinship matrices of size `mem_size x n` (rather than full kinship matrices of size `n x n`). This is useful for very large studies, where the kinship matrix is very large. By default `mem size = 1000`. Using smaller values will require less memory but may increase the run-time. Note that `pcgcs_direct.py` stores the entire contents of the plink files in memory, which may themselves be very large.
 
+```
+--snp1 <snp number>
+--snp2 <snp number>
+```
+These options tell `pcgcs_direct.py` to compute summary statistics only for the range of SNPs snp1-snp2 (the first SNP has the number 1). This is useful for large data sets that cannot fit in the computer memory. The summary statistics can then be joined together and then analyzed with `pcgcs_direct.py`, as explained in the `Working with huge datasets` section below.
 
-#### Jackknife options:
-```
---jackknife 0/1
-```
-This will toggle jackknife-based standard error computations on or off. By default this is turned on. Turning this off will speed up the computations significatly, but standard errors will not be reported.
+
 
 #### Permutation testing:
 ```
