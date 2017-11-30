@@ -190,7 +190,7 @@ Heritability and genetic correlation estimation with covariates requires several
 
 <br><br>
 ## Regression of Principal Components
-It is sometimes desirable to include principal components (PCs) as covariates in the analysis to prevent possible confounding due to population structure. We recommend computing principal components via external software (e.g. [FlashPCA2](https://github.com/gabraham/flashpca)) and include them in the list of covariates. 
+It is sometimes desirable to include principal components (PCs) as covariates in the analysis to prevent possible confounding due to population structure. We recommend computing principal components via external software (e.g. [FlashPCA2](https://github.com/gabraham/flashpca)) and including them as additional covariates in the covariates file. 
 
 A particular complexity of case-control studies is that the PCs are reflected in the kinship matrix entries, which can bias the estimation. It is therefore recommended to regress genotype vectors to the subspace that is orthogonal to the leading PCs. This can be done in `pcgcs_direct.py` via the flags `--PC1 <i1,i2,...,im>`, `--PC2 <i1,i2,...,im>`, where the arguments are a comma-separated list of covariate indices that are principal components (starting from 1). For example, if a covariates file includes 5 PCs and a sex covariate, the flag should be specified as `--PC1 1,2,3,4,5`.
 
