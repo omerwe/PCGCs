@@ -198,7 +198,7 @@ if __name__ == '__main__':
 
     #compute sum of squares of eigenvalues using LD-score trick
     if (args.eigenvalues_frac is not None):
-        sum_s_sqr = X.shape[0]**2 / float(num_snps) * mean_ld   +   np.sum(G_diag**2)
+        sum_s_sqr = X.shape[0]**2 / float(num_good_snps) * mean_ld   +   np.sum(G_diag**2)
         sum_s = np.sum(G_diag)
         s = np.array(args.eigenvalues_frac.split(','), dtype=np.float)  
         assert np.all(s>0)
