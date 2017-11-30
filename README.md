@@ -198,6 +198,7 @@ Unfortunately, regression of PCs out of genotype vectors leads to biased estimat
 Similar quantities will also be reported for study 2, and should be passed as well with the flags `--geno2_factor`, `--sqr_geno2_factor`.
 
 
+<br><br>
 ## Working with Huge Datasets
 `pcgcs_direct.py` may have difficulty loading the entire matrix of genotypes into memory at once. To alleviate this concern, it is possible to compute summary statitics for different subsets of SNPs, and then concatenate them together and analyze the concatenated files with `pcgcs_summary.py`. This can be done with the flags `--snp1 <snp number>`, `--snp2 <snp number>`, as explained above. For example, one can run the following commands:
 
