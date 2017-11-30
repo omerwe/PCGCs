@@ -69,7 +69,7 @@ The second command will use summary statistics produced by the first command to 
 <br><br>
 ## Computing Heritability and Genetic Correlation Directly
 The file `pcgcs_direct.py` directly estimates heritability and genetic correlation.
-This file can accept either one or two plink files representing distinct genetic studies. If only one file is provided, `pcgcs_direct.py` will estimate heritability. If two files are provided, it will also estimate heritability for the second study and the genetic correlation between the studies. Standard errors are computed via a jackknife over individuals.
+This file can accept either one or two plink files representing distinct genetic studies. If only one file is provided, `pcgcs_direct.py` will estimate heritability. If two files are provided, it will also estimate heritability for the second study and the genetic correlation between the studies. Standard errors can be computed via a jackknife over individuals, by specifying `--jackknife 1` (but this will slow down the analysis considerably).
 The command-line arguments can be broken down into several categories, which we now describe:
 
 #### Raw Data:
@@ -230,7 +230,7 @@ After finising running `pcgcs_intermediate.py`, we can continue to run `pcgcs_su
 # Important notes
 1. Overlapping individuals (shared between the two studies) will not be automatically detected. Please make sure that overlapping individuals are clearly marked in the plink files by having exactly the same family id and individual id.
 
-2. `pcgcs_direct.py` attemps to avoid storing large matrices in memory, and in particular avoids computing kinship matrices. Instead, it computes intermediate matrices of size `w x n`, where `w` is the `mem_size` parameter and `n` is the study size. However, it keeps the full contents of the plink files in memory, which may itself take up large amounts of memory. If this is a problem, please refer to the `Working with Huge Datasets` section above.
+2. `pcgcs_direct.py` attemps to avoid storing large matrices in memory, and in particular avoids computing kinship matrices. Instead, it computes intermediate matrices of size `w x n`, where `w` is the `mem_size` parameter and `n` is the study size. However, it keeps the full contents of the plink files in memory, which may itself take up large amounts of memory. If this is a problem, please refer to the **Working with Huge Datasets** section above.
 
 
 <br><br>
