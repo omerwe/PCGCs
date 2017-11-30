@@ -458,7 +458,7 @@ if __name__ == '__main__':
     
     
     #read and preprocess the data
-    X1, bed1, phe1, cov1, X2, bed2, phe2, cov2 = pcgcs_utils.read_SNPs(bfile1=args.bfile1, pheno1=args.pheno1, prev1=args.prev1, covar1=args.covar1, keep1=args.keep1, bfile2=args.bfile2, pheno2=args.pheno2, prev2=args.prev2, covar2=args.covar2, keep2=args.keep2, extract=args.extract, missingPhenotype=args.missingPhenotype, chr=args.chr, norm=args.norm, maf=args.maf, center=args.center>0, snp1=args.snp1, snp2=args.snp2)
+    X1, bed1, phe1, cov1, X2, bed2, phe2, cov2 = pcgcs_utils.read_SNPs(bfile1=args.bfile1, pheno1=args.pheno1, prev1=args.prev1, covar1=args.covar1, keep1=args.keep1, bfile2=args.bfile2, pheno2=args.pheno2, prev2=args.prev2, covar2=args.covar2, keep2=args.keep2, extract=args.extract, missingPhenotype=args.missingPhenotype, chr=args.chr, norm=args.norm, maf=args.maf, center=args.center>0, snp1=args.snp1, snp2=args.snp2)    
     assert np.all(~np.isnan(X1))
     if (cov1 is not None): assert np.all(~np.isnan(cov1))
     
@@ -490,7 +490,8 @@ if __name__ == '__main__':
     print_memory_usage(3.1)
     print 'bfile1: %d cases, %d controls, %d SNPs'%(np.sum(phe1>phe1.mean()), np.sum(phe1<=phe1.mean()), bed1.sid.shape[0])
     print_memory_usage(3.2)
-    if (args.sumstats_only==0 or args.Gty1_nocov_out is not None or args.Gty1_cov_out is not None): G1_diag = np.einsum('ij,ij->i', X1,X1) / float(X1.shape[1])
+    if (args.sumstats_only==0 or args.Gty1_nocov_out is not None or args.Gty1_cov_out is not None):        
+        G1_diag = np.einsum('ij,ij->i', X1,X1) / float(X1.shape[1])
     print_memory_usage(3.3)
     
     
@@ -530,7 +531,7 @@ if __name__ == '__main__':
     print_memory_usage(5)
     
     #write Gty files
-    if (args.Gty1_nocov_out is not None):
+    if (args.Gty1_nocov_out is not None):        
         Gty1 = np.sqrt(G1_diag) * y1_norm
         df = pd.DataFrame(bed1.iid, columns=['fid', 'iid'])
         df['Gty1'] = Gty1
@@ -542,8 +543,8 @@ if __name__ == '__main__':
         df['Gty2'] = Gty2
         df.to_csv(args.Gty2_nocov_out, sep='\t', index=False, float_format='%0.6e', header=None)
     
-    if (args.Gty1_cov_out is not None):
-        Gty1 = np.sqrt(G1_diag) * ty1 * (u1_0 + u1_1)       
+    if (args.Gty1_cov_out is not None):        
+        Gty1 = np.sqrt(G1_diag) * ty1 * (u1_0 + u1_1)        
         df = pd.DataFrame(bed1.iid, columns=['fid', 'iid'])
         df['Gty1'] = Gty1
         df.to_csv(args.Gty1_cov_out, sep='\t', index=False, float_format='%0.6e', header=None)

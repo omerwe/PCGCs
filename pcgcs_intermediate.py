@@ -134,6 +134,7 @@ if __name__ == '__main__':
     
     #compute G diag
     G_diag = None
+    num_good_snps = 0
     for snp1 in xrange(0, num_snps, args.mem_size):
         snp2 = np.minimum(snp1+args.mem_size, num_snps-1)
         print 'reading SNPs %d to %d (out of %d total SNPs)'%(snp1+1, snp2+1, num_snps)
@@ -144,11 +145,13 @@ if __name__ == '__main__':
         if (args.PC is not None):
             print 'regressing given PCs out of bfile'
             X = regress_given_PCs(X, cov, args.PC)
+            num_good_snps += X.shape[1]
             
-        if (G_diag is None): G_diag = np.zeros(X.shape[0])      
+        if (G_diag is None): G_diag = np.zeros(X.shape[0])        
         G_diag += np.einsum('ij,ij->i', X,X)
     
-    G_diag /= float(num_snps)
+    G_diag /= float(num_good_snps)
+    
 
 
 
