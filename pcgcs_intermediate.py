@@ -107,7 +107,7 @@ if __name__ == '__main__':
     
     parser.add_argument('--Gty_nocov_out', metavar='Gty_nocov_out', default=None, help='output file for covariate-less summary information')
     parser.add_argument('--Gty_cov_out', metavar='Gty_cov_out', default=None, help='output file for covariates-summary information')
-    parser.add_argument('--eigenvalues_frac', metavar='eigenvalues_frac', default=None, help='comma-separated list of eigenvalues of PCs')
+    parser.add_argument('--eigenvalues_frac', metavar='eigenvalues_frac', default=None, help='comma-separated list of the fraction of variance explained by the provided PCs')
     parser.add_argument('--ref-ld', metavar='ref_ld', default=None, help='file with LD scores of SNPs, in ldsc format')
     parser.add_argument('--mean-ld', metavar='mean_ld', type=float, default=None, help='mean LD of SNPs')
     
