@@ -101,7 +101,7 @@ If turned on, `PCGCs_direct.py` will only compute summary statistics without com
 --snp1 <snp number>
 --snp2 <snp number>
 ```
-These options tell `pcgcs_direct.py` to compute summary statistics only for the range of SNPs snp1-snp2 (the first SNP has the number 1). This is useful for large data sets that cannot fit in the computer memory. The summary statistics can then be joined together and then analyzed with `pcgcs_direct.py`, as explained in the **Working with huge datasets** section below.
+These options tell `pcgcs_direct.py` to compute summary statistics only for the range of SNPs snp1-snp2 (the first SNP has the number 1). This is useful for large data sets that cannot fit in the computer memory. The summary statistics can then be joined together and then analyzed with `pcgcs_direct.py`, as explained in the **Working with Huge Datasets** section below.
 
 
 
