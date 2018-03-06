@@ -206,15 +206,15 @@ Similar quantities will also be reported for study 2, and should be passed as we
 ## Working with Huge Datasets
 `pcgcs_direct.py` may have difficulty loading the entire matrix of genotypes into memory at once. To alleviate this concern, it is possible to compute summary statitics for different subsets of SNPs, and then concatenate them together and analyze the concatenated files with `pcgcs_summary.py`. This can be done with the flags `--snp1 <snp number>`, `--snp2 <snp number>`, as explained above. For example, one can run the following commands:
 
-`pcgcs_summary.py --bfile <bfile> --pheno <pheno> --covar <covar> --snp1 1 --snp2 50000 --z1_cov_out z1_1_50000.csv`
+`pcgcs_direct.py --bfile <bfile> --pheno <pheno> --covar <covar> --snp1 1 --snp2 50000 --z1_cov_out z1_1_50000.csv`
 
-`pcgcs_summary.py --bfile <bfile> --pheno <pheno> --covar <covar> --snp1 50001 --snp2 100000 --z1_cov_out z1_50001_100000.csv`
+`pcgcs_direct.py --bfile <bfile> --pheno <pheno> --covar <covar> --snp1 50001 --snp2 100000 --z1_cov_out z1_50001_100000.csv`
 
 `zcat z1_1_50000.csv.gz > z1_combined.csv`
 
 `zcat z1_50001_100000.csv | tail -n +2 >> z1_combined.csv`
 
-These commands will invoke `pcgcs_summary.py`, once for SNPs 1-50000 and once for SNPs 500001-100000. The next two commands will concatenate the summary statistics together into `z1_combined.csv` (while making sure to only include a single header from the first file).
+These commands will invoke `pcgcs_direct.py`, once for SNPs 1-50000 and once for SNPs 500001-100000. The next two commands will concatenate the summary statistics together into `z1_combined.csv` (while making sure to only include a single header from the first file).
 
 When this is done, we still need to compute several required quantities, such as Gty files. This can be done using the script `pcgcs_intermediate.py`. This script accepts many of the same arguments as `pcgcs_direct.py` (as can be examined with the command `python pcgcs_intermediate.py --help`). The most important argument is `--mem_size <#SNPs>`, which will limit the number of SNPs loaded into memory at once. The second new argument that should be provided is `--eigenvalues_frac <f1,f2,...,fm>`. This argument provides a comma-separated list of fraction of variance explained by the PCs that are specified using the flag `--PC`. These are provided by [FlashPCA2](https://github.com/gabraham/flashpca) in the file pve.txt.
 
