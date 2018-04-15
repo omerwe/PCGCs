@@ -309,7 +309,7 @@ def print_preamble():
     print '*********************************************************************'
     print '* PCGC-direct for heritability and genetic correlation estimates'
     print '* Version 1.0.0'
-    print '* (C) 2017 Omer Weissbrod'
+    print '* (C) 2018 Omer Weissbrod'
     print '* Technion - Israel Institute of Technology'
     print '*********************************************************************'
     print
@@ -400,6 +400,9 @@ if __name__ == '__main__':
     parser.add_argument('--snp1', metavar='snp1', default=None, type=int, help='read only a subset of SNPs starting from snp1, starting from 1 (must be specified with snp2)')
     parser.add_argument('--snp2', metavar='snp1', default=None, type=int, help='read only a subset of SNPs ending with snp2, starting from 1 (must be specified with snp1)')
     
+    
+    parser.add_argument('--snp_weights', metavar='snp_weights', default=None, help='snp weights file (two columns: snp name, weight)')
+    
 
     args = parser.parse_args()
     print_preamble()
@@ -484,6 +487,22 @@ if __name__ == '__main__':
         print 'done'
         if (cov2 is None): cov2 = U2
         else: cov2 = np.concatenate((cov2, U2), axis=1)
+        
+    
+    #apply weights
+    if (args.snp_weights is not None):
+        print 'weighting SNPs...'
+        df_weights = pd.read_csv(args.snp_weights, names=['snp', 'weigt'], delim_whitespace=True, header=None, index_col='snp', squeeze=True)
+        ###import ipdb; ipdb.set_trace()
+        assert np.all(np.isin(bed1.sid, df_weights.index)), 'not all SNPs have weights'
+        df_weights = df_weights.loc[bed1.sid]
+        assert df_weights.shape[0] == len(bed1.sid)
+        
+        snp_weights = df_weights.values
+        assert np.all(snp_weights>=0)        
+        X1 *= np.sqrt(snp_weights * X1.shape[1]/snp_weights.sum())
+        if (bed2 is not None):
+            X2 *= np.sqrt(snp_weights * X2.shape[1]/snp_weights.sum())
     
     
     #print plink file sizes
@@ -492,11 +511,13 @@ if __name__ == '__main__':
     print_memory_usage(3.2)
     if (args.sumstats_only==0 or args.Gty1_nocov_out is not None or args.Gty1_cov_out is not None):        
         G1_diag = np.einsum('ij,ij->i', X1,X1) / float(X1.shape[1])
+        ###print 'G1_diag:', G1_diag[:10]
     print_memory_usage(3.3)
     
     
     if (bed2 is not None):
-        if (args.sumstats_only==0 or args.Gty2_nocov_out is not None or args.Gty2_cov_out is not None): G2_diag = np.einsum('ij,ij->i', X2,X2) / float(X2.shape[1])
+        if (args.sumstats_only==0 or args.Gty2_nocov_out is not None or args.Gty2_cov_out is not None):
+            G2_diag = np.einsum('ij,ij->i', X2,X2) / float(X2.shape[1])
         print 'bfile2: %d cases, %d controls, %d SNPs'%(np.sum(phe2>phe2.mean()), np.sum(phe2<=phe2.mean()), bed2.sid.shape[0])     
 
     print_memory_usage(4)

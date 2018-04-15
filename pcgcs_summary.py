@@ -202,7 +202,7 @@ def print_preamble():
     print '*********************************************************************'
     print '* PCGC-summary for heritability and genetic correlation estimates'
     print '* Version 1.0.0'
-    print '* (C) 2017 Omer Weissbrod'
+    print '* (C) 2018 Omer Weissbrod'
     print '* Technion - Israel Institute of Technology'
     print '*********************************************************************'
     print
@@ -325,6 +325,9 @@ if __name__ == '__main__':
     parser.add_argument('--sqr_geno2_factor', metavar='sqr_geno2_factor', type=float, default=1.0, help='deflation factor for squared genotypes of study 2')
     
     
+    parser.add_argument('--snp_weights', metavar='snp_weights', default=None, help='snp weights file (two columns: snp name, weight)')
+    
+    
 
     args = parser.parse_args()
     print_preamble()
@@ -348,8 +351,20 @@ if __name__ == '__main__':
     #read Z scores and LD scores, and compute mean LD score
     if (args.z1_nocov is not None):
         z1_nocov, z2_nocov, snp_names, ld_scores = read_zscores(args.z1_nocov, args.z2_nocov, extractSnpsSet, args.ref_ld)
-        if (args.ref_ld is None): mean_ld = args.mean_ld
-        else: mean_ld = ld_scores.mean()    
+        if (args.ref_ld is None):
+            assert args.snp_weights is None, 'snp_weights cannot be set when using --mean_ld'
+            mean_ld = args.mean_ld
+        else:            
+            if (args.snp_weights is None):
+                mean_ld = ld_scores.mean()
+            else:
+                df_weights = pd.read_csv(args.snp_weights, names=['snp', 'weigt'], delim_whitespace=True, header=None, index_col='snp', squeeze=True)
+                assert np.all(np.isin(snp_names, df_weights.index)), 'not all SNPs have weights'
+                df_weights = df_weights.loc[snp_names]
+                assert df_weights.shape[0] == len(snp_names)                
+                snp_weights = df_weights.values
+                raise Exception('snp_weights with summary statistics are not yet supported')
+                
         print 'Total number of SNPs with omitted-covariates Z-scores: %d'%(len(snp_names))      
     
     if (args.z1_cov is not None):
