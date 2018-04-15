@@ -98,7 +98,7 @@ If turned on, `PCGCs_direct.py` will only compute summary statistics without com
 ```
 --snp_weights <snp_weights file>
 ```
-This option allows assigning different weights to different SNPs. This can be be useful, for example, if one wants to use the [LDAK model](https://www.nature.com/articles/ng.3865), wherein [each SNP is weighted according to its MAF and its LD patterns](http://dougspeed.com/get-weightings/). This file should include two tab-delimited columns: SNP name and SNP weight (no header is required).
+This option allows assigning different weights to different SNPs. This can be be useful, for example, if one wants to use the [LDAK model](https://www.nature.com/articles/ng.3865), wherein [each SNP is weighted according to its MAF and its LD patterns](http://dougspeed.com/get-weightings/). This file should include two tab-delimited columns: SNP name and SNP weight (no header is required). This option is currently supported only for `pcgcs_direct.py`. Support for `pcgcs_summary.py` will come in the future.
 
 #### Memory utilization options:
 ```
