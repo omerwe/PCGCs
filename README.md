@@ -2,7 +2,7 @@
 Heritability and Genetic Correlation Estimation using Summary Statistics
 
 PCGC-s is a Python package for estimation of genetic heritability, covariance and correlation in case-control studies. PCGC-s can either work directly on genotype and phenotypes files, or it can be invoked using only privacy-preserving summary statistics.
-The method can be seen as an adaptation of [LD score regression](http://www.nature.com/ng/journal/v47/n11/full/ng.3406.html) for case-control studies.
+The method can be seen as an adaptation of [LD score regression](http://www.nature.com/ng/journal/v47/n11/full/ng.3406.html) for case-control studies. [A preprint of the PCGC-s paper is available on bioRxiv](https://www.biorxiv.org/content/early/2018/02/04/256388).
 
 <br><br>
 # Installation
