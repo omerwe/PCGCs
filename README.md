@@ -6,7 +6,7 @@ The method can be seen as an adaptation of [LD score regression](http://www.natu
 
 <br><br>
 # Installation
-PCGC-s is designed to work in Python 2.7, and depends on the following freely available Python package:
+PCGC-s is designed to work in Python 2.7, and depends on the following freely available Python packages:
 * [numpy](http://www.numpy.org/) and [scipy](http://www.scipy.org/)
 * [scikit-learn](http://scikit-learn.org/stable/)
 * [PySnpTools](https://github.com/MicrosoftGenomics/PySnpTools)
@@ -94,6 +94,11 @@ The `--norm` field currently accepts three options: "bed" will use in-sample nor
 ```
 If turned on, `PCGCs_direct.py` will only compute summary statistics without computing the actual heritability and genetic correlation estimates and their standard errors. This will be much faster than the full computation.
 
+#### SNP weight options:
+```
+--snp_weights <snp_weights file>
+```
+This option allows assigning different weights to different SNPs. This can be be useful, for example, if one wants to use the [LDAK model](https://www.nature.com/articles/ng.3865), wherein [each SNP is weighted according to its MAF and its LD patterns](http://dougspeed.com/get-weightings/). This file should include two tab-delimited columns: SNP name and SNP weight (no header is required).
 
 #### Memory utilization options:
 ```
