@@ -244,7 +244,7 @@ After finising running `pcgcs_intermediate.py`, we can continue to run `pcgcs_su
 -----------------
 Contact
 ---------
-For questions and comments, please contact Omer Weissbrod at omerw[at]cs.technion.ac.il
+For questions and comments, please contact Omer Weissbrod at oweissbrod[at]hsph.harvard.edu
 
 
 
